@@ -1,1 +1,1 @@
-# Juice --- Get done like driking tropical juice
+# Juice --- Get things done like driking tropical juice
