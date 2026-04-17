@@ -22,19 +22,23 @@ Relevant files:
 
 ## 2. React UI
 
-- **Vite + React** render the chat screen and session drawer.
+- **Vite + React** render the full-width chat screen, settings surfaces, and shadcn sidebar.
 - `DesktopAssistant` owns the app-level flow for backend startup, session loading, history loading, and chat streaming.
+- Layout uses a flat flex structure inside `SidebarInset`: `header` → scrollable transcript (`flex-1 overflow-y-auto`) → composer (`shrink-0`). This prevents rerender-induced width/height collapse.
 - The transcript renders:
   - user bubbles
   - assistant markdown replies
-  - embedded collapsible thinking sections
+  - collapsible thinking sections — only rendered for **closed** `<think>...</think>` blocks; unclosed tags are treated as plain content
   - tool and system entries
+- Settings uses shadcn `Tabs` (top nav), `Toggle` for enable/default controls, `Field`/`FieldGroup` for create/edit forms, and `Sonner` toast for feedback.
 
 Relevant files:
 
 - `src/features/assistant/desktop-assistant.tsx`
 - `src/components/chat/*`
 - `src/components/sessions/*`
+- `src/features/settings/settings-screen.tsx`
+- `src/components/ui/` (shadcn: sidebar, tabs, toggle, field, label, sonner)
 
 ## 3. Cubicles runtime
 

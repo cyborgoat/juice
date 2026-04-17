@@ -3,29 +3,50 @@ import { MessageSquarePlus, Search, Settings2, X } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarInput,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  useSidebar,
+} from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import type { SessionSummary } from "@/lib/demo-data"
 
 type SessionSidebarProps = {
   sessions: SessionSummary[]
   selectedSessionId: string
-  isOpen: boolean
+  currentView?: "chat" | "settings"
   onSelectSession: (sessionId: string) => void
   onCreateSession: () => void
-  onClose: () => void
+  onOpenSettings: () => void
 }
 
 export function SessionSidebar({
   sessions,
   selectedSessionId,
-  isOpen,
+  currentView = "chat",
   onSelectSession,
   onCreateSession,
-  onClose,
+  onOpenSettings,
 }: SessionSidebarProps) {
+  const { isMobile, setOpen, setOpenMobile } = useSidebar()
   const [query, setQuery] = useState("")
+
+  function handleCloseSidebar() {
+    if (isMobile) {
+      setOpenMobile(false)
+      return
+    }
+
+    setOpen(false)
+  }
 
   const filteredSessions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -41,13 +62,11 @@ export function SessionSidebar({
   }, [query, sessions])
 
   return (
-    <aside
-      className={cn(
-        "absolute inset-y-0 left-0 z-30 flex w-[272px] min-h-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar/90 shadow-2xl backdrop-blur-xl transition-transform duration-200",
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      )}
+    <Sidebar
+      collapsible="offcanvas"
+      className="z-30 [&_[data-slot=sidebar-inner]]:border-r [&_[data-slot=sidebar-inner]]:border-sidebar-border/70 [&_[data-slot=sidebar-inner]]:bg-sidebar/90 [&_[data-slot=sidebar-inner]]:shadow-2xl [&_[data-slot=sidebar-inner]]:backdrop-blur-xl"
     >
-      <div className="space-y-3 border-b border-sidebar-border/70 p-3">
+      <SidebarHeader className="gap-3 border-b border-sidebar-border/70 p-3">
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
@@ -57,7 +76,7 @@ export function SessionSidebar({
               Sessions
             </h1>
           </div>
-          <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={onClose}>
+          <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={handleCloseSidebar}>
             <X className="size-4" />
             <span className="sr-only">Close sidebar</span>
           </Button>
@@ -70,59 +89,60 @@ export function SessionSidebar({
 
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+          <SidebarInput
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search sessions"
             className="h-9 rounded-xl border-sidebar-border bg-background/70 pl-9"
           />
         </div>
-      </div>
+      </SidebarHeader>
 
-      <div className="px-3 pt-2 text-[11px] text-muted-foreground">
-        {filteredSessions.length} sessions
-      </div>
+      <SidebarContent className="min-h-0 px-2 pb-2">
+        <div className="px-2 py-2 text-[11px] text-muted-foreground">
+          {filteredSessions.length} sessions
+        </div>
 
-      <ScrollArea className="min-h-0 flex-1 overflow-hidden px-2 py-2">
-        <div className="space-y-1 pb-2">
+        <SidebarMenu className="gap-1 pb-2">
           {filteredSessions.map((session, index) => {
             const isActive = session.id === selectedSessionId
 
             return (
-              <motion.button
-                key={session.id}
-                type="button"
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.04, duration: 0.24 }}
-                onClick={() => onSelectSession(session.id)}
-                className={cn(
-                  "flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-sidebar-foreground"
-                    : "text-sidebar-foreground hover:bg-background/70"
-                )}
-              >
-                <span
-                  className={cn(
-                    "size-1.5 shrink-0 rounded-full",
-                    session.status === "live"
-                      ? "bg-emerald-500"
-                      : session.status === "ready"
-                        ? "bg-sky-400"
-                        : "bg-muted-foreground/50"
-                  )}
-                />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                  {session.title}
-                </span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">
-                  {session.messageCount}
-                </span>
-                {isActive ? (
-                  <span className="shrink-0 text-[11px] text-primary">Active</span>
-                ) : null}
-              </motion.button>
+              <SidebarMenuItem key={session.id}>
+                <motion.div
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.04, duration: 0.24 }}
+                >
+                  <SidebarMenuButton
+                    type="button"
+                    isActive={isActive}
+                    tooltip={session.title}
+                    onClick={() => onSelectSession(session.id)}
+                    className="h-auto rounded-xl px-2.5 py-2"
+                  >
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        session.status === "live"
+                          ? "bg-emerald-500"
+                          : session.status === "ready"
+                            ? "bg-sky-400"
+                            : "bg-muted-foreground/50"
+                      )}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                      {session.title}
+                    </span>
+                    {isActive ? (
+                      <span className="shrink-0 text-[11px] text-primary">Active</span>
+                    ) : null}
+                  </SidebarMenuButton>
+                  <SidebarMenuBadge className="right-2 top-2.5">
+                    {session.messageCount}
+                  </SidebarMenuBadge>
+                </motion.div>
+              </SidebarMenuItem>
             )
           })}
 
@@ -131,15 +151,26 @@ export function SessionSidebar({
               No sessions match <span className="font-medium text-foreground">“{query}”</span>.
             </div>
           ) : null}
-        </div>
-      </ScrollArea>
+        </SidebarMenu>
+      </SidebarContent>
 
-      <div className="border-t border-sidebar-border/70 p-3">
-        <Button variant="outline" size="sm" className="h-8 w-full justify-between rounded-xl">
-          Settings
-          <Settings2 className="size-4" />
-        </Button>
-      </div>
-    </aside>
+      <SidebarSeparator />
+
+      <SidebarFooter className="p-3">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              type="button"
+              isActive={currentView === "settings"}
+              onClick={onOpenSettings}
+              className="h-8 rounded-xl"
+            >
+              <Settings2 className="size-4" />
+              <span>Settings</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   )
 }

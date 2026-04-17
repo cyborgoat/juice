@@ -18,7 +18,7 @@ const toolStatusLabel: Record<Extract<TranscriptEntry, { type: "tool" }>["status
 
 export function ChatTranscript({ entries }: ChatTranscriptProps) {
   return (
-    <div className="space-y-3 px-3 py-3 md:px-4 md:py-4">
+    <div className="flex min-w-0 w-full flex-col space-y-3 px-3 py-3 md:px-4 md:py-4">
       <AnimatePresence initial={false}>
         {entries.map((entry) => {
           if (entry.type === "message") {
@@ -30,19 +30,19 @@ export function ChatTranscript({ entries }: ChatTranscriptProps) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
-                className={cn("flex", isUser ? "justify-end" : "justify-start")}
+                className={cn("flex w-full min-w-0", isUser ? "justify-end" : "justify-start")}
               >
                 <div
                   className={cn(
-                    "flex max-w-[42rem] flex-col",
+                    "flex min-w-0 w-full flex-col",
                     isUser
-                      ? "w-fit min-w-[12rem] max-w-[32rem] items-end"
-                      : "w-fit min-w-[18rem] max-w-[42rem] items-start"
+                      ? "items-end"
+                      : "max-w-none items-start"
                   )}
                 >
                   <div
                     className={cn(
-                      "mb-1.5 flex min-w-full items-center gap-3 px-1 text-[11px]",
+                      "mb-1.5 flex gap-3 px-1 text-[11px]",
                       isUser ? "text-primary/80" : "text-muted-foreground"
                     )}
                   >
@@ -54,10 +54,10 @@ export function ChatTranscript({ entries }: ChatTranscriptProps) {
                   </div>
                   <div
                     className={cn(
-                      "w-fit min-w-full max-w-full px-0 py-0",
+                      "max-w-full px-0 py-0",
                       isUser
-                        ? "rounded-[1.35rem] border border-primary/20 bg-primary px-3.5 py-2.5 text-primary-foreground shadow-sm"
-                        : "text-foreground"
+                        ? "w-fit min-w-[16rem] max-w-[min(85%,44rem)] rounded-[1.35rem] border border-primary/20 bg-primary px-3.5 py-2.5 text-primary-foreground shadow-sm"
+                        : "w-full text-foreground"
                     )}
                   >
                     {isUser ? (
@@ -80,7 +80,7 @@ export function ChatTranscript({ entries }: ChatTranscriptProps) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
-                className="max-w-[42rem] min-w-[18rem] rounded-[1.35rem] border border-border/70 bg-card/70 p-3.5 shadow-sm"
+                className="min-w-0 w-full rounded-[1.35rem] border border-border/70 bg-card/70 p-3.5 shadow-sm"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="outline" className="rounded-full">
@@ -118,7 +118,7 @@ export function ChatTranscript({ entries }: ChatTranscriptProps) {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
-                className="max-w-[42rem] min-w-[18rem] rounded-[1.35rem] border border-dashed border-primary/30 bg-primary/5 p-3.5"
+                className="min-w-0 w-full rounded-[1.35rem] border border-dashed border-primary/30 bg-primary/5 p-3.5"
               >
               <div className="flex items-center gap-2 text-[11px] text-primary">
                 <Sparkles className="size-3.5" />

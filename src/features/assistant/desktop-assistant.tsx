@@ -19,7 +19,8 @@ import { type CubiclesBackendState, ensureCubiclesBackend } from "@/lib/tauri/cu
 import { ChatComposer } from "@/components/chat/chat-composer"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
 import { SessionSidebar } from "@/components/sessions/session-sidebar"
-import { Button } from "@/components/ui/button"
+import { SettingsScreen } from "@/features/settings/settings-screen"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import {
   demoSessions,
   demoTranscripts,
@@ -172,6 +173,7 @@ export function DesktopAssistant() {
     pid: null,
   })
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [activeView, setActiveView] = useState<"chat" | "settings">("chat")
   const [isStreaming, setIsStreaming] = useState(false)
   const liveStreamStateRef = useRef<Record<string, { thinkingOpen: boolean }>>({})
 
@@ -258,6 +260,7 @@ export function DesktopAssistant() {
     : []
 
   async function handleCreateSession() {
+    setActiveView("chat")
     if (backendState.mode === "ready") {
       const createdSession = await createCubiclesSession(
         buildSessionTitle(visibleSessions.length)
@@ -297,6 +300,7 @@ export function DesktopAssistant() {
   }
 
   async function handleSelectSession(sessionId: string) {
+    setActiveView("chat")
     setSelectedSessionId(sessionId)
 
     if (backendState.mode === "ready" && remoteSessionIds.has(sessionId)) {
@@ -571,56 +575,43 @@ export function DesktopAssistant() {
     }
   }
 
-  if (!activeSession) {
+  if (!activeSession && activeView === "chat") {
     return null
   }
 
-  const contentWidthClass = "max-w-6xl"
+  const contentWidthClass = activeView === "settings" ? "max-w-6xl" : "max-w-none"
 
   return (
     <div className="dark h-screen overflow-hidden bg-background text-foreground">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.12),transparent_26%)]" />
 
-      <div className="relative flex h-screen overflow-hidden">
-        {isSidebarOpen ? (
-          <button
-            type="button"
-            className="absolute inset-0 z-20 bg-black/30 backdrop-blur-[1px]"
-            onClick={() => setIsSidebarOpen(false)}
-            aria-label="Close sidebar drawer"
+      <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen} className="h-full overflow-hidden">
+          <SessionSidebar
+            sessions={visibleSessions}
+            selectedSessionId={activeSession?.id ?? ""}
+            currentView={activeView}
+            onSelectSession={(sessionId) => {
+              void handleSelectSession(sessionId)
+            }}
+            onCreateSession={() => {
+              void handleCreateSession()
+            }}
+            onOpenSettings={() => setActiveView("settings")}
           />
-        ) : null}
-        <SessionSidebar
-          sessions={visibleSessions}
-          selectedSessionId={activeSession.id}
-          isOpen={isSidebarOpen}
-          onSelectSession={(sessionId) => {
-            void handleSelectSession(sessionId)
-          }}
-          onCreateSession={() => {
-            void handleCreateSession()
-          }}
-          onClose={() => setIsSidebarOpen(false)}
-        />
 
-        <main className="flex h-screen min-w-0 flex-1 flex-col overflow-hidden">
+          <SidebarInset className="flex min-w-0 flex-col overflow-hidden">
           <header className="border-b border-border/70 bg-background/70 px-4 py-2 backdrop-blur-xl md:px-6">
             <div className={cn("mx-auto flex w-full items-center justify-between gap-4", contentWidthClass)}>
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    className="rounded-full"
-                    onClick={() => setIsSidebarOpen((open) => !open)}
-                  >
+                  <SidebarTrigger className="rounded-full">
                     <PanelLeft className="size-4" />
                     <span className="sr-only">
                       {isSidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
                     </span>
-                  </Button>
+                  </SidebarTrigger>
                   <h2 className="truncate text-lg font-semibold tracking-tight md:text-xl">
-                    {activeSession.title}
+                    {activeView === "settings" ? "Settings" : activeSession?.title}
                   </h2>
                   <div className="group/status relative flex shrink-0 items-center">
                     <button
@@ -647,22 +638,26 @@ export function DesktopAssistant() {
                   </div>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {activeSession.workspace}
+                  {activeView === "settings"
+                    ? "Profiles, durable memory, and runtime metadata"
+                    : activeSession?.workspace}
                 </p>
               </div>
 
             </div>
           </header>
 
-          <div className="min-h-0 flex-1">
-            <section className="flex h-full min-h-0 min-w-0 flex-col">
+          {activeView === "settings" ? (
+            <SettingsScreen backendState={backendState} />
+          ) : (
+            <>
               <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3 md:px-4">
                 <div className={cn("mx-auto w-full", contentWidthClass)}>
                   <ChatTranscript entries={activeEntries} />
                 </div>
               </div>
 
-              <div className="sticky bottom-0 shrink-0 border-t border-border/70 bg-background/88 px-3 py-3 backdrop-blur md:px-4">
+              <div className="shrink-0 border-t border-border/70 bg-background/88 px-3 py-3 backdrop-blur md:px-4">
                 <div className={cn("mx-auto w-full", contentWidthClass)}>
                   <ChatComposer
                     onSubmit={(value) => {
@@ -673,10 +668,10 @@ export function DesktopAssistant() {
                   />
                 </div>
               </div>
-            </section>
-          </div>
-        </main>
-      </div>
+            </>
+          )}
+          </SidebarInset>
+      </SidebarProvider>
     </div>
   )
 }

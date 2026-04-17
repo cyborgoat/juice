@@ -1,11 +1,22 @@
 import type {
+  CubiclesApiCreateRequest,
+  CubiclesApiGroupSummary,
+  CubiclesApiRecord,
+  CubiclesApiUpdateRequest,
   CubiclesChatEvent,
   CubiclesChatStreamRequest,
   CubiclesHealthResponse,
+  CubiclesMemoryDocument,
+  CubiclesProfileDetailResponse,
+  CubiclesProfileUpsertRequest,
   CubiclesProfileSummary,
   CubiclesSessionHistoryMessage,
   CubiclesSessionResponse,
+  CubiclesSkillResponse,
+  CubiclesSkillScanResponse,
   CubiclesSettingsResponse,
+  CubiclesToolCatalogResponse,
+  CubiclesWorkspaceResponse,
 } from "@/lib/cubicles-api/types"
 import { getCubiclesApiBase } from "@/lib/tauri/cubicles-backend"
 
@@ -22,6 +33,27 @@ async function fetchCubiclesJson<T>(
   return (await response.json()) as T
 }
 
+async function fetchCubiclesVoid(path: string, init?: RequestInit): Promise<void> {
+  const response = await fetch(`${getCubiclesApiBase()}${path}`, init)
+
+  if (!response.ok) {
+    throw new Error(`Cubicles request failed: ${response.status} ${response.statusText}`)
+  }
+}
+
+function withQuery(path: string, params: Record<string, string | undefined>) {
+  const search = new URLSearchParams()
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) {
+      search.set(key, value)
+    }
+  }
+
+  const query = search.toString()
+  return query ? `${path}?${query}` : path
+}
+
 export function fetchCubiclesHealth() {
   return fetchCubiclesJson<CubiclesHealthResponse>("/health")
 }
@@ -36,6 +68,180 @@ export function fetchCubiclesSessions() {
 
 export function fetchCubiclesProfiles() {
   return fetchCubiclesJson<CubiclesProfileSummary[]>("/profiles")
+}
+
+export function fetchCubiclesWorkspaces() {
+  return fetchCubiclesJson<CubiclesWorkspaceResponse[]>("/workspaces")
+}
+
+export function fetchCubiclesProfileDetail(name: string) {
+  return fetchCubiclesJson<CubiclesProfileDetailResponse>(`/profiles/${encodeURIComponent(name)}`)
+}
+
+export function createCubiclesProfile(
+  name: string,
+  body: CubiclesProfileUpsertRequest
+) {
+  return fetchCubiclesJson<CubiclesProfileDetailResponse>(
+    `/profiles/${encodeURIComponent(name)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  )
+}
+
+export function updateCubiclesProfile(
+  name: string,
+  body: CubiclesProfileUpsertRequest
+) {
+  return fetchCubiclesJson<CubiclesProfileDetailResponse>(
+    `/profiles/${encodeURIComponent(name)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }
+  )
+}
+
+export function deleteCubiclesProfile(name: string) {
+  return fetchCubiclesJson<{
+    deleted: string[]
+    new_default: string | null
+    cleared_default: boolean
+  }>(`/profiles/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  })
+}
+
+export function updateCubiclesSettings(body: {
+  default_profile?: string
+  default_workspace_id?: string
+}) {
+  return fetchCubiclesJson<CubiclesSettingsResponse>("/settings", {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function fetchCubiclesMemoryDocument(identifier: string) {
+  return fetchCubiclesJson<CubiclesMemoryDocument>(
+    `/memory/documents/${encodeURIComponent(identifier)}`
+  )
+}
+
+export function updateCubiclesMemoryDocument(identifier: string, content: string) {
+  return fetchCubiclesJson<CubiclesMemoryDocument>(
+    `/memory/documents/${encodeURIComponent(identifier)}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    }
+  )
+}
+
+export function fetchCubiclesApis() {
+  return fetchCubiclesJson<CubiclesApiRecord[]>("/apis")
+}
+
+export function fetchCubiclesApiGroups() {
+  return fetchCubiclesJson<CubiclesApiGroupSummary[]>("/apis/groups")
+}
+
+export function createCubiclesApi(body: CubiclesApiCreateRequest) {
+  return fetchCubiclesJson<CubiclesApiRecord>("/apis", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateCubiclesApi(name: string, body: CubiclesApiUpdateRequest) {
+  return fetchCubiclesJson<CubiclesApiRecord>(`/apis/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function setCubiclesApiEnabled(name: string, enabled: boolean) {
+  return fetchCubiclesJson<{ name: string; enabled: boolean }>(
+    `/apis/${encodeURIComponent(name)}/${enabled ? "enable" : "disable"}`,
+    {
+      method: "POST",
+    }
+  )
+}
+
+export function deleteCubiclesApi(name: string) {
+  return fetchCubiclesVoid(`/apis/${encodeURIComponent(name)}`, {
+    method: "DELETE",
+  })
+}
+
+export function fetchCubiclesSkills(profileName?: string) {
+  return fetchCubiclesJson<CubiclesSkillResponse[]>(
+    withQuery("/skills", { profile_name: profileName })
+  )
+}
+
+export function scanCubiclesSkills(profileName?: string) {
+  return fetchCubiclesJson<CubiclesSkillScanResponse>(
+    withQuery("/skills/scan", { profile_name: profileName }),
+    {
+      method: "POST",
+    }
+  )
+}
+
+export function setCubiclesSkillEnabled(
+  name: string,
+  enabled: boolean,
+  profileName?: string
+) {
+  return fetchCubiclesJson<{ name: string; enabled: boolean }>(
+    `/skills/${encodeURIComponent(name)}/${enabled ? "enable" : "disable"}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        profile_name: profileName,
+      }),
+    }
+  )
+}
+
+export function fetchCubiclesToolCatalog(profileName?: string) {
+  return fetchCubiclesJson<CubiclesToolCatalogResponse>(
+    withQuery("/tools", { profile_name: profileName })
+  )
+}
+
+export function setCubiclesExtensionEnabled(name: string, enabled: boolean) {
+  return fetchCubiclesJson<{ name: string; enabled: boolean }>(
+    `/tools/extensions/${encodeURIComponent(name)}/${enabled ? "enable" : "disable"}`,
+    {
+      method: "POST",
+    }
+  )
 }
 
 export function fetchCubiclesSessionHistory(sessionId: string) {

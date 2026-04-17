@@ -4,14 +4,6 @@ This file tracks the major product work still pending for the desktop app.
 
 ## High priority
 
-- Build a real **Settings** page
-  - backend status and diagnostics
-  - profile management: add / edit / delete profiles
-  - default profile switching
-  - editable durable memory document (`MEMORY.md`)
-  - Cubicles home/runtime metadata
-  - workspace and memory-related settings surfaces where appropriate
-
 - Add **slash-command compatibility** in the desktop composer
   - support `/help`, `/new`, `/session`, `/sessions`, `/profile`, `/workspace`, `/memory`, `/api`, `/compact`, `/skills`, `/tools`
   - use Cubicles `GET /api/slash` and `POST /api/slash`
@@ -43,10 +35,15 @@ This file tracks the major product work still pending for the desktop app.
 - Better empty state handling
 - Restore active session more explicitly on app launch
 
+## Settings
+
+- Workspace management tab (list, switch, create workspaces)
+- Backend/runtime testing flows and richer diagnostics
+- Live validation for API key registration
+
 ## Cubicles feature parity targets
 
 - Surface skills from `~/.cubicles/skills/`
-- Surface memory read/update flows, including direct `MEMORY.md` editing
 - Surface grouped API tools from `~/.cubicles/apis/`
 - Surface workspaces and workspace switching flows
 - Surface server settings/runtime metadata already exposed by Cubicles

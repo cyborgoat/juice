@@ -9,7 +9,48 @@ export type CubiclesSettingsResponse = {
   default_workspace_id: string
   cubicles_home: string
   sessions_db: string
+  providers: CubiclesProviderSpec[]
+  tool_groups: CubiclesToolGroup[]
+  frontend_path: string
   api_base: string
+}
+
+export type CubiclesProviderSpec = {
+  id: string
+  provider: string
+  label: string
+  description: string
+  default_base_url: string
+  model_examples: string[]
+  api_key_envs: string[]
+  api_key_optional: boolean
+}
+
+export type CubiclesToolGroup = {
+  name: string
+  description: string
+  order: number
+}
+
+export type CubiclesToolRecord = {
+  name: string
+  description: string
+  enabled: boolean
+  source: string
+  group: string
+  category: string
+  managed: boolean
+  configurable: boolean
+  cli_command: string | null
+  signature: string | null
+}
+
+export type CubiclesToolCatalogResponse = {
+  primitives: CubiclesToolRecord[]
+  apis: CubiclesToolRecord[]
+  extensions: CubiclesToolRecord[]
+  skills: CubiclesToolRecord[]
+  integrations: CubiclesToolRecord[]
 }
 
 export type CubiclesSessionResponse = {
@@ -36,6 +77,99 @@ export type CubiclesProfileSummary = {
   context: string
   compression: string
   status: string
+}
+
+export type CubiclesProfileDetailResponse = {
+  name: string
+  data: Record<string, unknown>
+  is_default: boolean
+}
+
+export type CubiclesProfileUpsertRequest = {
+  data: Record<string, unknown>
+  make_default?: boolean
+}
+
+export type CubiclesApiParameter = {
+  name: string
+  description: string
+  type: string
+  required: boolean
+  location: "query" | "path" | "header" | "body"
+}
+
+export type CubiclesApiRecord = {
+  name: string
+  group: string
+  description: string
+  url: string
+  enabled: boolean
+  max_chars: number
+  parameters: CubiclesApiParameter[]
+}
+
+export type CubiclesApiGroupSummary = {
+  group: string
+  summary: string
+  api_count: number
+  enabled_count: number
+  names: string[]
+}
+
+export type CubiclesApiCreateRequest = {
+  name: string
+  group?: string | null
+  description: string
+  url: string
+  method?: string
+  enabled?: boolean
+  max_chars?: number
+  parameters?: CubiclesApiParameter[]
+  profile_name?: string
+}
+
+export type CubiclesApiUpdateRequest = {
+  group?: string | null
+  description?: string | null
+  url?: string | null
+  enabled?: boolean | null
+  max_chars?: number | null
+  parameters?: CubiclesApiParameter[] | null
+}
+
+export type CubiclesMemoryDocument = {
+  kind: string
+  title: string
+  path: string
+  content: string
+}
+
+export type CubiclesSkillResponse = {
+  name: string
+  description: string
+  instructions: string
+  path: string
+  baseDir: string
+  enabled: boolean
+  helperPaths: string[]
+}
+
+export type CubiclesSkillScanResponse = {
+  discovered: Array<{
+    name: string
+    description: string
+    path: string
+  }>
+  registered: CubiclesSkillResponse[]
+}
+
+export type CubiclesWorkspaceResponse = {
+  id: string
+  path: string
+  name: string
+  description: string
+  exists: boolean
+  is_default: boolean
 }
 
 export type CubiclesChatStreamRequest = {

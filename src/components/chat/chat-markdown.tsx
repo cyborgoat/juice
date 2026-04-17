@@ -44,19 +44,7 @@ function parseThinkBlocks(content: string): Segment[] {
   }
 
   const rest = cleaned.slice(lastIndex)
-  const openIdx = rest.indexOf("<think>")
-  if (openIdx !== -1) {
-    if (openIdx > 0) {
-      segments.push({
-        type: "content",
-        text: normalizeContentSegment(rest.slice(0, openIdx)),
-      })
-    }
-    const inner = rest.slice(openIdx + 7)
-    if (inner.trim()) {
-      segments.push({ type: "think", text: inner })
-    }
-  } else if (rest) {
+  if (rest) {
     segments.push({ type: "content", text: normalizeContentSegment(rest) })
   }
 

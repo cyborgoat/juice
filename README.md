@@ -13,9 +13,14 @@ Today, Juice:
 - lists and activates real Cubicles sessions
 - creates sessions through the Cubicles API
 - streams chat responses from `/api/chat/stream`
-- renders assistant markdown
-- embeds collapsible thinking content inside assistant replies
-- uses a compact drawer sidebar for session navigation
+- renders assistant markdown with collapsible thinking sections (closed `<think>` blocks only)
+- uses a shadcn `Sidebar` with offcanvas collapse for session navigation
+- multi-tab Settings page (Overview · Profiles · Memory · APIs · Extensions · Skills)
+- profile create/edit/delete with shadcn `Field` forms and `Sonner` toast feedback
+- memory file configuration (MEMORY.md path)
+- API key registration and enable/disable via shadcn `Toggle`
+- extension and skill enable/default toggles
+- stable full-width chat layout with flat flex structure (no rerender-induced shrink)
 
 Juice does **not** currently import `@cubicles/*` directly into the app bundle. It supervises Cubicles as a separate local process and talks to it over HTTP/SSE.
 
@@ -74,7 +79,6 @@ npm run tauri:build
 
 Juice is already using real Cubicles chat streaming, but several desktop surfaces are still missing:
 
-- settings management UI, including profile CRUD and durable memory file editing
 - slash command compatibility in the chat input
 - slash command autocomplete
 - approval controls in the desktop transcript/composer flow
