@@ -6,6 +6,50 @@
     "main"
   ],
   "permissions": [
-    "core:default"
+    "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "build-cubicles-server",
+          "cmd": "/bin/zsh",
+          "args": [
+            "-lc",
+            "node scripts/build-cubicles-server.mjs"
+          ]
+        },
+        {
+          "name": "run-cubicles-server",
+          "cmd": "/bin/zsh",
+          "args": [
+            "-lc",
+            "node scripts/run-cubicles-server.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "build-cubicles-server",
+          "cmd": "/bin/zsh",
+          "args": [
+            "-lc",
+            "node scripts/build-cubicles-server.mjs"
+          ]
+        },
+        {
+          "name": "run-cubicles-server",
+          "cmd": "/bin/zsh",
+          "args": [
+            "-lc",
+            "node scripts/run-cubicles-server.mjs"
+          ]
+        }
+      ]
+    }
+    ,
+    "shell:allow-kill"
   ]
 }

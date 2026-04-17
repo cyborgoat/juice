@@ -1,73 +1,83 @@
-# React + TypeScript + Vite
+# Juice
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Desktop shell for a personal AI assistant built with **Tauri + Vite + React**, using your external **Cubicles** runtime as the backend.
 
-Currently, two official plugins are available:
+## What Juice is
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Juice is a desktop-first UI layer around Cubicles.
 
-## React Compiler
+Today, Juice:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- launches a local Cubicles server from `/Users/goatcheese/Documents/repositories/cubicles-ts`
+- checks backend health and shows connection state in the UI
+- lists and activates real Cubicles sessions
+- creates sessions through the Cubicles API
+- streams chat responses from `/api/chat/stream`
+- renders assistant markdown
+- embeds collapsible thinking content inside assistant replies
+- uses a compact drawer sidebar for session navigation
 
-## Expanding the ESLint configuration
+Juice does **not** currently import `@cubicles/*` directly into the app bundle. It supervises Cubicles as a separate local process and talks to it over HTTP/SSE.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Current architecture
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Juice is split into three pieces:
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1. **Tauri shell**
+   - owns the desktop window
+   - launches the Cubicles backend through the shell plugin
+   - handles local process supervision
+2. **React UI**
+   - renders the sidebar, chat transcript, composer, and connection state
+3. **Cubicles runtime**
+   - remains the source of truth for sessions, profiles, workspaces, tools, skills, approvals, and model execution
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+More detail:
+
+- [`docs/how-juice-works.md`](docs/how-juice-works.md)
+- [`docs/cubicles-integration.md`](docs/cubicles-integration.md)
+- [`todo.md`](todo.md)
+
+## Local Cubicles dependency
+
+Juice currently expects your Cubicles workspace at:
+
+```text
+/Users/goatcheese/Documents/repositories/cubicles-ts
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The desktop backend bootstrap builds and runs the server from that workspace.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Current managed backend target:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+http://127.0.0.1:7799
 ```
+
+## Scripts
+
+```bash
+npm install
+npm run dev
+npm run lint
+npm run build
+npm run tauri:dev
+npm run tauri:build
+```
+
+## Native requirements
+
+- Node.js
+- Rust toolchain
+
+## Current limitations
+
+Juice is already using real Cubicles chat streaming, but several desktop surfaces are still missing:
+
+- settings management UI, including profile CRUD and durable memory file editing
+- slash command compatibility in the chat input
+- slash command autocomplete
+- approval controls in the desktop transcript/composer flow
+- production packaging for the Cubicles runtime
+
+Those are tracked in [`todo.md`](todo.md).
