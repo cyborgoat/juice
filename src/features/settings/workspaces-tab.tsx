@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Plus } from "lucide-react"
 
 import {
   createCubiclesWorkspace,
@@ -11,13 +10,17 @@ import {
 import type { CubiclesWorkspaceResponse } from "@/lib/cubicles-api/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Field,
   FieldContent,
   FieldGroup,
   FieldLabel,
-  FieldSet,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
@@ -42,41 +45,24 @@ export function WorkspacesTab({
   onRefresh,
   showFeedback,
 }: WorkspacesTabProps) {
-  const [newWorkspaceId, setNewWorkspaceId] = useState("")
-  const [newWorkspaceName, setNewWorkspaceName] = useState("")
-  const [newWorkspacePath, setNewWorkspacePath] = useState("")
-  const [newWorkspaceDescription, setNewWorkspaceDescription] = useState("")
-
-  async function handleCreateWorkspace() {
-    const trimmedPath = newWorkspacePath.trim()
-    if (!trimmedPath) {
-      showFeedback("Workspace path is required.")
-      return
-    }
-
-    const createdWorkspace = await createCubiclesWorkspace({
-      id: newWorkspaceId.trim() || null,
-      name: newWorkspaceName.trim() || null,
-      path: trimmedPath,
-      description: newWorkspaceDescription.trim(),
-    })
-
-    await onRefresh()
-    onSelectWorkspace(createdWorkspace.id)
-    setNewWorkspaceId("")
-    setNewWorkspaceName("")
-    setNewWorkspacePath("")
-    setNewWorkspaceDescription("")
-    showFeedback(`Created workspace '${createdWorkspace.name}'.`)
-  }
+  const [showCreate, setShowCreate] = useState(false)
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold">Workspaces</h2>
         <Badge variant="secondary" className="rounded-full text-[10px]">
           {workspaces?.length ?? 0}
         </Badge>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto h-6 gap-1 rounded-md px-2 text-xs"
+          onClick={() => setShowCreate(true)}
+        >
+          <svg className="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          Register
+        </Button>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[200px_minmax(0,1fr)]">
@@ -110,70 +96,82 @@ export function WorkspacesTab({
         )}
       </div>
 
-      <Collapsible>
-        <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-90">
-          <Plus className="size-3" />
-          Register workspace
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="mt-2 rounded-lg border border-border/50 bg-background/40 p-3">
-            <FieldSet>
-              <FieldGroup>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="new-workspace-id">Workspace ID</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="new-workspace-id"
-                        value={newWorkspaceId}
-                        onChange={(event) => setNewWorkspaceId(event.target.value)}
-                        placeholder="optional-id"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="new-workspace-name">Display name</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="new-workspace-name"
-                        value={newWorkspaceName}
-                        onChange={(event) => setNewWorkspaceName(event.target.value)}
-                        placeholder="Workspace name"
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="new-workspace-path">Path</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id="new-workspace-path"
-                      value={newWorkspacePath}
-                      onChange={(event) => setNewWorkspacePath(event.target.value)}
-                      placeholder="/absolute/path/to/workspace"
-                    />
-                  </FieldContent>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="new-workspace-description">Description</FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      id="new-workspace-description"
-                      value={newWorkspaceDescription}
-                      onChange={(event) => setNewWorkspaceDescription(event.target.value)}
-                      className="min-h-20"
-                    />
-                  </FieldContent>
-                </Field>
-                <div>
-                  <Button size="sm" onClick={() => void handleCreateWorkspace()}>Register workspace</Button>
-                </div>
-              </FieldGroup>
-            </FieldSet>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      <CreateWorkspaceDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onFeedback={showFeedback}
+        onRefresh={onRefresh}
+        onSelectWorkspace={onSelectWorkspace}
+      />
     </div>
+  )
+}
+
+type CreateWorkspaceDialogProps = {
+  open: boolean
+  onClose: () => void
+  onFeedback: (message: string) => void
+  onRefresh: () => Promise<void>
+  onSelectWorkspace: (id: string) => void
+}
+
+function CreateWorkspaceDialog({ open, onClose, onFeedback, onRefresh, onSelectWorkspace }: CreateWorkspaceDialogProps) {
+  const [id, setId] = useState("")
+  const [name, setName] = useState("")
+  const [path, setPath] = useState("")
+  const [description, setDescription] = useState("")
+
+  async function handleCreate() {
+    const trimmedPath = path.trim()
+    if (!trimmedPath) {
+      onFeedback("Workspace path is required.")
+      return
+    }
+    const created = await createCubiclesWorkspace({
+      id: id.trim() || null,
+      name: name.trim() || null,
+      path: trimmedPath,
+      description: description.trim(),
+    })
+    await onRefresh()
+    onSelectWorkspace(created.id)
+    onFeedback(`Created workspace '${created.name}'.`)
+    setId(""); setName(""); setPath(""); setDescription("")
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Register workspace</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field>
+              <FieldLabel htmlFor="create-ws-id">Workspace ID</FieldLabel>
+              <FieldContent><Input id="create-ws-id" value={id} onChange={(e) => setId(e.target.value)} placeholder="optional-id" /></FieldContent>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="create-ws-name">Display name</FieldLabel>
+              <FieldContent><Input id="create-ws-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Workspace name" /></FieldContent>
+            </Field>
+          </div>
+          <Field>
+            <FieldLabel htmlFor="create-ws-path">Path</FieldLabel>
+            <FieldContent><Input id="create-ws-path" value={path} onChange={(e) => setPath(e.target.value)} placeholder="/absolute/path/to/workspace" /></FieldContent>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="create-ws-description">Description</FieldLabel>
+            <FieldContent><Textarea id="create-ws-description" value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-20" /></FieldContent>
+          </Field>
+          <div className="flex gap-2">
+            <Button size="sm" onClick={() => void handleCreate()}>Register</Button>
+            <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

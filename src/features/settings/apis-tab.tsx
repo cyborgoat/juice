@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ChevronRight, Pencil, Plus } from "lucide-react"
+import { Plus } from "lucide-react"
 
 import {
   createCubiclesApi,
@@ -48,57 +48,8 @@ export function ApisTab({
   onRefresh,
   showFeedback,
 }: ApisTabProps) {
-  const [newApiName, setNewApiName] = useState("")
-  const [newApiGroup, setNewApiGroup] = useState("")
-  const [newApiUrl, setNewApiUrl] = useState("")
-  const [newApiDescription, setNewApiDescription] = useState("")
-  const [newApiMaxChars, setNewApiMaxChars] = useState("4000")
-  const [newApiParametersJson, setNewApiParametersJson] = useState("[]")
+  const [showCreate, setShowCreate] = useState(false)
   const [editingApi, setEditingApi] = useState<CubiclesApiRecord | null>(null)
-
-  async function handleCreateApi() {
-    const trimmedName = newApiName.trim()
-    const trimmedDescription = newApiDescription.trim()
-    const trimmedUrl = newApiUrl.trim()
-
-    if (!trimmedName || !trimmedDescription || !trimmedUrl) {
-      showFeedback("API name, description, and URL are required.")
-      return
-    }
-
-    let parameters: CubiclesApiParameter[]
-    try {
-      parameters = JSON.parse(newApiParametersJson) as CubiclesApiParameter[]
-    } catch {
-      showFeedback("API parameters JSON must be a valid array.")
-      return
-    }
-
-    const maxChars = Number(newApiMaxChars)
-    if (!Number.isFinite(maxChars) || maxChars <= 0) {
-      showFeedback("API max chars must be a positive number.")
-      return
-    }
-
-    await createCubiclesApi({
-      name: trimmedName,
-      group: newApiGroup.trim() || null,
-      description: trimmedDescription,
-      url: trimmedUrl,
-      max_chars: Math.round(maxChars),
-      parameters,
-      profile_name: toolingProfileName,
-    })
-
-    await onRefresh()
-    setNewApiName("")
-    setNewApiGroup("")
-    setNewApiUrl("")
-    setNewApiDescription("")
-    setNewApiMaxChars("4000")
-    setNewApiParametersJson("[]")
-    showFeedback(`Created API '${trimmedName}'.`)
-  }
 
   return (
     <div className="space-y-3">
@@ -107,6 +58,15 @@ export function ApisTab({
         <Badge variant="secondary" className="rounded-full text-[10px]">
           {apis?.length ?? 0}
         </Badge>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto h-6 gap-1 rounded-md px-2 text-xs"
+          onClick={() => setShowCreate(true)}
+        >
+          <Plus className="size-3" />
+          Register
+        </Button>
       </div>
 
       {apiGroups?.length ? (
@@ -124,103 +84,17 @@ export function ApisTab({
 
       <div className="space-y-1">
         {apis?.map((api) => (
-          <ApiRow
-            key={api.name}
-            api={api}
-            onEdit={() => setEditingApi(api)}
-          />
+          <ApiRow key={api.name} api={api} onEdit={() => setEditingApi(api)} />
         ))}
       </div>
 
-      <Collapsible>
-        <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-90">
-          <Plus className="size-3" />
-          Register API
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="mt-2 rounded-lg border border-border/50 bg-background/40 p-3">
-            <FieldSet>
-              <FieldGroup>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <Field>
-                    <FieldLabel htmlFor="new-api-name">Name</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="new-api-name"
-                        value={newApiName}
-                        onChange={(event) => setNewApiName(event.target.value)}
-                        placeholder="API name"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="new-api-group">Group</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="new-api-group"
-                        value={newApiGroup}
-                        onChange={(event) => setNewApiGroup(event.target.value)}
-                        placeholder="Optional"
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-                <Field>
-                  <FieldLabel htmlFor="new-api-url">URL</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id="new-api-url"
-                      value={newApiUrl}
-                      onChange={(event) => setNewApiUrl(event.target.value)}
-                      placeholder="https://example.com/endpoint"
-                    />
-                  </FieldContent>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="new-api-description">Description</FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      id="new-api-description"
-                      value={newApiDescription}
-                      onChange={(event) => setNewApiDescription(event.target.value)}
-                      className="min-h-20"
-                      placeholder="Describe what this API tool does"
-                    />
-                  </FieldContent>
-                </Field>
-                <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
-                  <Field>
-                    <FieldLabel htmlFor="new-api-max-chars">Max chars</FieldLabel>
-                    <FieldContent>
-                      <Input
-                        id="new-api-max-chars"
-                        value={newApiMaxChars}
-                        onChange={(event) => setNewApiMaxChars(event.target.value)}
-                        placeholder="4000"
-                      />
-                    </FieldContent>
-                  </Field>
-                  <Field>
-                    <FieldLabel htmlFor="new-api-parameters">Parameters JSON</FieldLabel>
-                    <FieldContent>
-                      <Textarea
-                        id="new-api-parameters"
-                        value={newApiParametersJson}
-                        onChange={(event) => setNewApiParametersJson(event.target.value)}
-                        className="min-h-24 font-mono text-xs"
-                        placeholder='[{"name":"q","type":"string","required":true,"location":"query"}]'
-                      />
-                    </FieldContent>
-                  </Field>
-                </div>
-                <div>
-                  <Button size="sm" onClick={() => void handleCreateApi()}>Register</Button>
-                </div>
-              </FieldGroup>
-            </FieldSet>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      <ApiCreateDialog
+        open={showCreate}
+        toolingProfileName={toolingProfileName}
+        onClose={() => setShowCreate(false)}
+        onFeedback={showFeedback}
+        onRefresh={onRefresh}
+      />
 
       <ApiEditDialog
         api={editingApi}
@@ -237,7 +111,7 @@ function ApiRow({ api, onEdit }: { api: CubiclesApiRecord; onEdit: () => void })
     <Collapsible>
       <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-background/40 px-2.5 py-1.5 transition-colors hover:bg-background/70 [&:has([data-state=open])]:rounded-b-none [&:has([data-state=open])]:border-b-0">
         <CollapsibleTrigger className="flex min-w-0 flex-1 items-center gap-2 text-left [&[data-state=open]>svg:first-child]:rotate-90">
-          <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform" />
+          <svg className="size-3 shrink-0 text-muted-foreground transition-transform" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           <span className="min-w-0 flex-1 truncate text-sm font-medium">{api.name}</span>
           <span className="shrink-0 text-[10px] text-muted-foreground">{api.group}</span>
           <Badge variant={api.enabled ? "secondary" : "outline"} className="h-4 shrink-0 rounded-full px-1.5 text-[10px]">
@@ -251,7 +125,7 @@ function ApiRow({ api, onEdit }: { api: CubiclesApiRecord; onEdit: () => void })
           className="size-6 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
           onClick={(e) => { e.stopPropagation(); onEdit() }}
         >
-          <Pencil className="size-3" />
+          <svg className="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           <span className="sr-only">Edit {api.name}</span>
         </Button>
       </div>
@@ -261,6 +135,109 @@ function ApiRow({ api, onEdit }: { api: CubiclesApiRecord; onEdit: () => void })
         </div>
       </CollapsibleContent>
     </Collapsible>
+  )
+}
+
+type ApiCreateDialogProps = {
+  open: boolean
+  toolingProfileName: string
+  onClose: () => void
+  onFeedback: (message: string) => void
+  onRefresh: () => Promise<void>
+}
+
+function ApiCreateDialog({ open, toolingProfileName, onClose, onFeedback, onRefresh }: ApiCreateDialogProps) {
+  const [name, setName] = useState("")
+  const [group, setGroup] = useState("")
+  const [url, setUrl] = useState("")
+  const [description, setDescription] = useState("")
+  const [maxChars, setMaxChars] = useState("4000")
+  const [parametersJson, setParametersJson] = useState("[]")
+
+  async function handleCreate() {
+    const trimmedName = name.trim()
+    const trimmedDescription = description.trim()
+    const trimmedUrl = url.trim()
+
+    if (!trimmedName || !trimmedDescription || !trimmedUrl) {
+      onFeedback("Name, description, and URL are required.")
+      return
+    }
+
+    let parameters: CubiclesApiParameter[]
+    try {
+      parameters = JSON.parse(parametersJson) as CubiclesApiParameter[]
+    } catch {
+      onFeedback("Parameters JSON must be a valid array.")
+      return
+    }
+
+    const max = Number(maxChars)
+    if (!Number.isFinite(max) || max <= 0) {
+      onFeedback("Max chars must be a positive number.")
+      return
+    }
+
+    await createCubiclesApi({
+      name: trimmedName,
+      group: group.trim() || null,
+      description: trimmedDescription,
+      url: trimmedUrl,
+      max_chars: Math.round(max),
+      parameters,
+      profile_name: toolingProfileName,
+    })
+
+    await onRefresh()
+    onFeedback(`Created API '${trimmedName}'.`)
+    setName(""); setGroup(""); setUrl(""); setDescription(""); setMaxChars("4000"); setParametersJson("[]")
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Register API</DialogTitle>
+        </DialogHeader>
+        <FieldSet>
+          <FieldGroup>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field>
+                <FieldLabel htmlFor="create-api-name">Name</FieldLabel>
+                <FieldContent><Input id="create-api-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="API name" /></FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-api-group">Group</FieldLabel>
+                <FieldContent><Input id="create-api-group" value={group} onChange={(e) => setGroup(e.target.value)} placeholder="Optional" /></FieldContent>
+              </Field>
+            </div>
+            <Field>
+              <FieldLabel htmlFor="create-api-url">URL</FieldLabel>
+              <FieldContent><Input id="create-api-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/endpoint" /></FieldContent>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="create-api-description">Description</FieldLabel>
+              <FieldContent><Textarea id="create-api-description" value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-20" placeholder="Describe what this API does" /></FieldContent>
+            </Field>
+            <div className="grid gap-2 sm:grid-cols-[140px_minmax(0,1fr)]">
+              <Field>
+                <FieldLabel htmlFor="create-api-max-chars">Max chars</FieldLabel>
+                <FieldContent><Input id="create-api-max-chars" value={maxChars} onChange={(e) => setMaxChars(e.target.value)} placeholder="4000" /></FieldContent>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="create-api-parameters">Parameters JSON</FieldLabel>
+                <FieldContent><Textarea id="create-api-parameters" value={parametersJson} onChange={(e) => setParametersJson(e.target.value)} className="min-h-24 font-mono text-xs" placeholder='[{"name":"q","type":"string","required":true,"location":"query"}]' /></FieldContent>
+              </Field>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => void handleCreate()}>Register</Button>
+              <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
+            </div>
+          </FieldGroup>
+        </FieldSet>
+      </DialogContent>
+    </Dialog>
   )
 }
 
@@ -279,13 +256,7 @@ function ApiEditDialog({ api, onClose, onFeedback, onRefresh }: ApiEditDialogPro
           <DialogTitle className="text-sm">{api?.name}</DialogTitle>
         </DialogHeader>
         {api ? (
-          <ApiEditor
-            key={api.name}
-            api={api}
-            onFeedback={onFeedback}
-            onRefresh={onRefresh}
-            onDone={onClose}
-          />
+          <ApiEditor key={api.name} api={api} onFeedback={onFeedback} onRefresh={onRefresh} onDone={onClose} />
         ) : null}
       </DialogContent>
     </Dialog>
@@ -312,13 +283,13 @@ function ApiEditor({ api, onFeedback, onRefresh, onDone }: ApiEditorProps) {
     try {
       parameters = JSON.parse(parametersDraft) as CubiclesApiParameter[]
     } catch {
-      onFeedback("API parameters JSON must be a valid array.")
+      onFeedback("Parameters JSON must be a valid array.")
       return
     }
 
     const maxChars = Number(maxCharsDraft)
     if (!Number.isFinite(maxChars) || maxChars <= 0) {
-      onFeedback("API max chars must be a positive number.")
+      onFeedback("Max chars must be a positive number.")
       return
     }
 
@@ -349,64 +320,25 @@ function ApiEditor({ api, onFeedback, onRefresh, onDone }: ApiEditorProps) {
         <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_120px]">
           <Field>
             <FieldLabel htmlFor={`api-group-${api.name}`}>Group</FieldLabel>
-            <FieldContent>
-              <Input
-                id={`api-group-${api.name}`}
-                value={groupDraft}
-                onChange={(event) => setGroupDraft(event.target.value)}
-                placeholder="Group"
-              />
-            </FieldContent>
+            <FieldContent><Input id={`api-group-${api.name}`} value={groupDraft} onChange={(e) => setGroupDraft(e.target.value)} placeholder="Group" /></FieldContent>
           </Field>
           <Field>
             <FieldLabel htmlFor={`api-maxchars-${api.name}`}>Max chars</FieldLabel>
-            <FieldContent>
-              <Input
-                id={`api-maxchars-${api.name}`}
-                value={maxCharsDraft}
-                onChange={(event) => setMaxCharsDraft(event.target.value)}
-                placeholder="4000"
-              />
-            </FieldContent>
+            <FieldContent><Input id={`api-maxchars-${api.name}`} value={maxCharsDraft} onChange={(e) => setMaxCharsDraft(e.target.value)} placeholder="4000" /></FieldContent>
           </Field>
         </div>
-
         <Field>
           <FieldLabel htmlFor={`api-url-${api.name}`}>URL</FieldLabel>
-          <FieldContent>
-            <Input
-              id={`api-url-${api.name}`}
-              value={urlDraft}
-              onChange={(event) => setUrlDraft(event.target.value)}
-              placeholder="URL"
-            />
-          </FieldContent>
+          <FieldContent><Input id={`api-url-${api.name}`} value={urlDraft} onChange={(e) => setUrlDraft(e.target.value)} placeholder="URL" /></FieldContent>
         </Field>
-
         <Field>
           <FieldLabel htmlFor={`api-description-${api.name}`}>Description</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id={`api-description-${api.name}`}
-              value={descriptionDraft}
-              onChange={(event) => setDescriptionDraft(event.target.value)}
-              className="min-h-20"
-            />
-          </FieldContent>
+          <FieldContent><Textarea id={`api-description-${api.name}`} value={descriptionDraft} onChange={(e) => setDescriptionDraft(e.target.value)} className="min-h-20" /></FieldContent>
         </Field>
-
         <Field>
           <FieldLabel htmlFor={`api-parameters-${api.name}`}>Parameters JSON</FieldLabel>
-          <FieldContent>
-            <Textarea
-              id={`api-parameters-${api.name}`}
-              value={parametersDraft}
-              onChange={(event) => setParametersDraft(event.target.value)}
-              className="min-h-28 font-mono text-xs"
-            />
-          </FieldContent>
+          <FieldContent><Textarea id={`api-parameters-${api.name}`} value={parametersDraft} onChange={(e) => setParametersDraft(e.target.value)} className="min-h-28 font-mono text-xs" /></FieldContent>
         </Field>
-
         <Field className="w-fit">
           <FieldLabel>Enabled</FieldLabel>
           <div className="flex h-9 items-center">
@@ -414,8 +346,7 @@ function ApiEditor({ api, onFeedback, onRefresh, onDone }: ApiEditorProps) {
           </div>
         </Field>
       </FieldGroup>
-
-      <div className="flex flex-wrap gap-2">
+      <div className="flex gap-2">
         <Button size="sm" onClick={() => void handleSaveApi()}>Save</Button>
         <Button size="sm" variant="destructive" onClick={() => void handleDeleteApi()}>Delete</Button>
       </div>

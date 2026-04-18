@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { Plus } from "lucide-react"
 
 import {
   createCubiclesProfile,
@@ -10,7 +9,12 @@ import {
 import type { CubiclesProfileDetailResponse } from "@/lib/cubicles-api/types"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   Field,
   FieldContent,
@@ -47,46 +51,24 @@ export function ProfilesTab({
   onRefresh,
   showFeedback,
 }: ProfilesTabProps) {
-  const [newProfileName, setNewProfileName] = useState("")
-  const [newProfileJson, setNewProfileJson] = useState(
-    '{\n  "provider_id": "",\n  "model": ""\n}'
-  )
-
-  async function handleCreateProfile() {
-    const trimmedName = newProfileName.trim()
-    if (!trimmedName) {
-      showFeedback("New profile name is required.")
-      return
-    }
-
-    let parsed: Record<string, unknown>
-    try {
-      parsed = JSON.parse(newProfileJson) as Record<string, unknown>
-    } catch {
-      showFeedback("New profile JSON is invalid.")
-      return
-    }
-
-    await createCubiclesProfile(trimmedName, {
-      data: {
-        ...parsed,
-        name: trimmedName,
-      },
-    })
-
-    await onRefresh()
-    onSelectProfile(trimmedName)
-    setNewProfileName("")
-    showFeedback(`Created profile '${trimmedName}'.`)
-  }
+  const [showCreate, setShowCreate] = useState(false)
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold">Profiles</h2>
         <Badge variant="secondary" className="rounded-full text-[10px]">
           {profiles?.length ?? 0}
         </Badge>
+        <Button
+          size="sm"
+          variant="outline"
+          className="ml-auto h-6 gap-1 rounded-md px-2 text-xs"
+          onClick={() => setShowCreate(true)}
+        >
+          <svg className="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+          Create
+        </Button>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-[200px_minmax(0,1fr)]">
@@ -118,49 +100,79 @@ export function ProfilesTab({
         )}
       </div>
 
-      <Collapsible>
-        <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground [&[data-state=open]>svg]:rotate-90">
-          <Plus className="size-3" />
-          Create profile
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="mt-2 rounded-lg border border-border/50 bg-background/40 p-3">
-            <FieldSet>
-              <FieldGroup>
-                <Field>
-                  <FieldLabel htmlFor="new-profile-name">Profile name</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id="new-profile-name"
-                      value={newProfileName}
-                      onChange={(event) => setNewProfileName(event.target.value)}
-                      placeholder="New profile name"
-                    />
-                  </FieldContent>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="new-profile-json">Profile JSON</FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      id="new-profile-json"
-                      value={newProfileJson}
-                      onChange={(event) => setNewProfileJson(event.target.value)}
-                      className="min-h-32 font-mono text-xs"
-                    />
-                    <FieldDescription>
-                      Use the raw Cubicles profile shape so the UI stays compatible with backend updates.
-                    </FieldDescription>
-                  </FieldContent>
-                </Field>
-                <div>
-                  <Button size="sm" onClick={() => void handleCreateProfile()}>Create profile</Button>
-                </div>
-              </FieldGroup>
-            </FieldSet>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      <CreateProfileDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onFeedback={showFeedback}
+        onRefresh={onRefresh}
+        onSelectProfile={onSelectProfile}
+      />
     </div>
+  )
+}
+
+type CreateProfileDialogProps = {
+  open: boolean
+  onClose: () => void
+  onFeedback: (message: string) => void
+  onRefresh: () => Promise<void>
+  onSelectProfile: (name: string) => void
+}
+
+function CreateProfileDialog({ open, onClose, onFeedback, onRefresh, onSelectProfile }: CreateProfileDialogProps) {
+  const [name, setName] = useState("")
+  const [json, setJson] = useState('{\n  "provider_id": "",\n  "model": ""\n}')
+
+  async function handleCreate() {
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      onFeedback("Profile name is required.")
+      return
+    }
+    let parsed: Record<string, unknown>
+    try {
+      parsed = JSON.parse(json) as Record<string, unknown>
+    } catch {
+      onFeedback("Profile JSON is invalid.")
+      return
+    }
+    await createCubiclesProfile(trimmedName, { data: { ...parsed, name: trimmedName } })
+    await onRefresh()
+    onSelectProfile(trimmedName)
+    onFeedback(`Created profile '${trimmedName}'.`)
+    setName("")
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="text-sm">Create profile</DialogTitle>
+        </DialogHeader>
+        <FieldSet>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="create-profile-name">Profile name</FieldLabel>
+              <FieldContent>
+                <Input id="create-profile-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="New profile name" />
+              </FieldContent>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="create-profile-json">Profile JSON</FieldLabel>
+              <FieldContent>
+                <Textarea id="create-profile-json" value={json} onChange={(e) => setJson(e.target.value)} className="min-h-32 font-mono text-xs" />
+                <FieldDescription>Raw Cubicles profile shape — stays compatible with backend updates.</FieldDescription>
+              </FieldContent>
+            </Field>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => void handleCreate()}>Create</Button>
+              <Button size="sm" variant="outline" onClick={onClose}>Cancel</Button>
+            </div>
+          </FieldGroup>
+        </FieldSet>
+      </DialogContent>
+    </Dialog>
   )
 }
 
