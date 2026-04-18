@@ -22,11 +22,8 @@ if (!developmentCubiclesRoot) {
   throw new Error("JUICE_CUBICLES_ROOT is required when no bundled Cubicles runtime is available.")
 }
 
-if (hasDevelopmentServerBuild(developmentCubiclesRoot)) {
-  process.stdout.write(`Using existing Cubicles development build from ${developmentCubiclesRoot}\n`)
-  process.exit(0)
-}
-
+// Always rebuild in dev mode to pick up source changes.
+process.stdout.write(`Building Cubicles development runtime from ${developmentCubiclesRoot}\n`)
 execFileSync("npm", ["run", "build"], {
   cwd: developmentCubiclesRoot,
   stdio: "inherit",
