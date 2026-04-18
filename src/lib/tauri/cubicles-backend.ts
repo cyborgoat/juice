@@ -96,12 +96,12 @@ export async function ensureCubiclesBackend(): Promise<CubiclesBackendState> {
 async function startCubiclesBackend(): Promise<CubiclesBackendState> {
   const bundledResourceRoot = import.meta.env.DEV ? null : await resourceDir()
   const bundledCubiclesRoot = bundledResourceRoot
-    ? await join(bundledResourceRoot, "cubicles-runtime")
+    ? await join(bundledResourceRoot, "resources", "cubicles-runtime")
     : null
   const scriptRoot = import.meta.env.DEV
     ? `${JUICE_ROOT}/scripts`
     : bundledResourceRoot
-      ? await join(bundledResourceRoot, "juice-scripts")
+      ? await join(bundledResourceRoot, "resources", "juice-scripts")
       : `${JUICE_ROOT}/scripts`
   const commandEnv = {
     JUICE_CUBICLES_ROOT: CUBICLES_ROOT,

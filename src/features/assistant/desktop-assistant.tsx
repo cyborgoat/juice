@@ -1215,11 +1215,8 @@ export function DesktopAssistant() {
     await handleSendMessage(value)
   }
 
-  if (!activeSession && activeView === "chat") {
-    return null
-  }
-
   const contentWidthClass = activeView === "settings" ? "max-w-6xl" : "max-w-none"
+  const showEmptyChatState = !activeSession && activeView === "chat"
 
   return (
     <div className="dark h-screen overflow-hidden bg-background text-foreground">
@@ -1289,7 +1286,7 @@ export function DesktopAssistant() {
                     </span>
                   </SidebarTrigger>
                   <h2 className="truncate text-lg font-semibold tracking-tight md:text-xl">
-                    {activeView === "settings" ? "Settings" : activeSession?.title}
+                    {activeView === "settings" ? "Settings" : activeSession?.title ?? "Juice"}
                   </h2>
                   <div className="group/status relative flex shrink-0 items-center">
                     <button
@@ -1346,6 +1343,27 @@ export function DesktopAssistant() {
 
           {activeView === "settings" ? (
             <SettingsScreen backendState={backendState} />
+          ) : showEmptyChatState ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
+              {backendState.mode === "starting" ? (
+                <>
+                  <div className="size-8 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+                  <p className="text-sm text-muted-foreground">Starting Cubicles backend…</p>
+                </>
+              ) : backendState.mode === "error" ? (
+                <>
+                  <div className="size-3 rounded-full bg-red-500 shadow-[0_0_0_6px_rgba(239,68,68,0.15)]" />
+                  <div className="max-w-md space-y-1">
+                    <p className="text-sm font-medium text-foreground">Backend connection failed</p>
+                    <p className="text-xs leading-relaxed text-muted-foreground">{backendState.detail}</p>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No sessions yet. Create one from the sidebar to get started.
+                </p>
+              )}
+            </div>
           ) : (
             <>
               <div

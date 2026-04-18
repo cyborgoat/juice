@@ -29,9 +29,7 @@
     "active": true,
     "targets": "all",
     "resources": [
-      "resources/**/*",
-      "../scripts/build-cubicles-server.mjs",
-      "../scripts/run-cubicles-server.mjs"
+      "resources/**/*"
     ],
     "icon": [
       "icons/32x32.png",
