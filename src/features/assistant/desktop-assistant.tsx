@@ -1158,10 +1158,6 @@ export function DesktopAssistant() {
               setDeleteCandidateSessionId(sessionId)
             }}
             onOpenSettings={() => setActiveView("settings")}
-            onOpenAdvancedTab={(tab) => {
-              setActiveView("settings")
-              setActiveSettingsTab(tab)
-            }}
           />
 
           <SidebarInset className="flex min-w-0 flex-col overflow-hidden">

@@ -257,19 +257,14 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
         <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-3 py-1.5 backdrop-blur-sm md:px-4">
           <div className="mx-auto max-w-4xl">
             <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto bg-transparent p-0">
-              {tabs.map((tab, i) => (
-                <>
-                  {i === 3 && (
-                    <span key="sep" className="mx-1 h-4 w-px self-center bg-border/60" aria-hidden />
-                  )}
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    className="h-7 min-w-fit shrink-0 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-active:bg-primary/10 data-active:text-foreground"
-                  >
-                    {tab.label}
-                  </TabsTrigger>
-                </>
+              {tabs.map((tab) => (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className="h-7 min-w-fit shrink-0 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-active:bg-primary/10 data-active:text-foreground"
+                >
+                  {tab.label}
+                </TabsTrigger>
               ))}
             </TabsList>
           </div>
