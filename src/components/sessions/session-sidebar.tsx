@@ -141,7 +141,7 @@ export function SessionSidebar({
                     <SidebarMenuAction
                       type="button"
                       showOnHover
-                      className="right-1 top-1/2 -translate-y-1/2 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                      className="inset-y-0 right-1 my-auto h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive"
                       disabled={isMutatingSession}
                       onClick={(event) => {
                         event.preventDefault()
