@@ -39,6 +39,24 @@ export function getCubiclesApiBase() {
   return API_BASE
 }
 
+export function getCubiclesBackendLogs(): string[] {
+  return [...backendLogs]
+}
+
+export async function testCubiclesHealth(): Promise<{ ok: boolean; latencyMs: number; error?: string }> {
+  const start = Date.now()
+  try {
+    const response = await fetch(HEALTH_URL)
+    const latencyMs = Date.now() - start
+    if (response.ok) {
+      return { ok: true, latencyMs }
+    }
+    return { ok: false, latencyMs, error: `HTTP ${response.status}` }
+  } catch (err) {
+    return { ok: false, latencyMs: Date.now() - start, error: String(err) }
+  }
+}
+
 async function waitForHealth(timeoutMs = 30_000) {
   const startedAt = Date.now()
 

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { MessageSquarePlus, PanelLeft, XCircle } from "lucide-react"
+import { Download, MessageSquarePlus, PanelLeft, Settings2, Trash2, XCircle } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -23,6 +23,7 @@ import type {
   CubiclesSessionHistoryMessage,
 } from "@/lib/cubicles-api/types"
 import { type CubiclesBackendState, ensureCubiclesBackend } from "@/lib/tauri/cubicles-backend"
+import { CommandPalette, type CommandPaletteAction } from "@/components/command-palette"
 import { ChatComposer } from "@/components/chat/chat-composer"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
 import { SessionSidebar } from "@/components/sessions/session-sidebar"
@@ -31,6 +32,7 @@ import { SettingsScreen } from "@/features/settings/settings-screen"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { type SessionSummary, type TranscriptEntry } from "@/lib/demo-data"
 import { createLogger } from "@/lib/logger"
+import { transcriptToMarkdown, downloadMarkdown } from "@/lib/transcript-export"
 import { cn } from "@/lib/utils"
 
 function formatTimestamp(value: string) {
@@ -396,6 +398,9 @@ export function DesktopAssistant() {
       Boolean(activeSession?.id) &&
       remoteSessionIds.has(activeSession.id) &&
       activeView === "chat",
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    refetchInterval: 10_000,
   })
 
   const fallbackHistoryEntries = useMemo(
@@ -1220,8 +1225,47 @@ export function DesktopAssistant() {
   const contentWidthClass = activeView === "settings" ? "max-w-6xl" : "max-w-none"
   const showEmptyChatState = !activeSession && activeView === "chat"
 
+  const paletteActions = useMemo<CommandPaletteAction[]>(() => {
+    const actions: CommandPaletteAction[] = [
+      {
+        id: "new-session",
+        label: "New Session",
+        icon: <MessageSquarePlus className="size-4" />,
+        onSelect: () => void handleCreateSession(),
+      },
+      {
+        id: "settings",
+        label: "Open Settings",
+        icon: <Settings2 className="size-4" />,
+        onSelect: () => setActiveView("settings"),
+      },
+    ]
+    if (activeSession && activeEntries.length > 0) {
+      actions.push({
+        id: "export",
+        label: "Export Transcript",
+        icon: <Download className="size-4" />,
+        onSelect: () => {
+          const md = transcriptToMarkdown(activeEntries, activeSession.title)
+          const slug = activeSession.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 40)
+          downloadMarkdown(md, `${slug || "transcript"}.md`)
+          toast.success("Transcript exported")
+        },
+      })
+      actions.push({
+        id: "delete-session",
+        label: "Delete Current Session",
+        icon: <Trash2 className="size-4" />,
+        onSelect: () => setDeleteCandidateSessionId(activeSession.id),
+      })
+    }
+    return actions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession, activeEntries])
+
   return (
     <div className="dark h-screen overflow-hidden bg-background text-foreground">
+      <CommandPalette actions={paletteActions} />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.12),transparent_26%)]" />
 
       {deleteCandidateSession ? (
@@ -1340,6 +1384,22 @@ export function DesktopAssistant() {
                 )}
               </div>
 
+              {activeView === "chat" && activeSession && activeEntries.length > 0 && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 rounded-full"
+                  onClick={() => {
+                    const md = transcriptToMarkdown(activeEntries, activeSession.title)
+                    const slug = activeSession.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 40)
+                    downloadMarkdown(md, `${slug || "transcript"}.md`)
+                    toast.success("Transcript exported")
+                  }}
+                  aria-label="Export transcript"
+                >
+                  <Download className="size-4" />
+                </Button>
+              )}
             </div>
           </header>
 
@@ -1373,11 +1433,27 @@ export function DesktopAssistant() {
                   <div className="flex size-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
                     <MessageSquarePlus className="size-6 text-primary/70" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground/80">No active session</p>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-medium text-foreground/80">Welcome to Juice</p>
                     <p className="text-xs text-muted-foreground">
-                      Create a new session from the sidebar to get started.
+                      Create a session to start chatting with your AI workspace.
                     </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => void handleCreateSession()}
+                    >
+                      <MessageSquarePlus className="mr-1.5 size-3.5" />
+                      New Session
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground">
+                      or press{" "}
+                      <kbd className="rounded border border-border/70 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">
+                        ⌘K
+                      </kbd>
+                    </span>
                   </div>
                 </>
               )}

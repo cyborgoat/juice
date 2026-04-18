@@ -36,7 +36,7 @@ import type {
   CubiclesToolRecord,
   CubiclesWorkspaceResponse,
 } from "@/lib/cubicles-api/types"
-import { type CubiclesBackendState } from "@/lib/tauri/cubicles-backend"
+import { type CubiclesBackendState, getCubiclesBackendLogs, testCubiclesHealth } from "@/lib/tauri/cubicles-backend"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -447,6 +447,10 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div className="mt-4">
+                <BackendDiagnostics backendState={backendState} />
               </div>
             </div>
             </TabsContent>
@@ -899,6 +903,114 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
           </section>
         </Tabs>
       </div>
+    </div>
+  )
+}
+
+function BackendDiagnostics({ backendState }: { backendState: CubiclesBackendState }) {
+  const [healthResult, setHealthResult] = useState<{
+    ok: boolean
+    latencyMs: number
+    error?: string
+  } | null>(null)
+  const [isTesting, setIsTesting] = useState(false)
+  const [showLogs, setShowLogs] = useState(false)
+  const logs = getCubiclesBackendLogs()
+
+  async function handleTestHealth() {
+    setIsTesting(true)
+    try {
+      const result = await testCubiclesHealth()
+      setHealthResult(result)
+      if (result.ok) {
+        toast.success(`Backend healthy (${result.latencyMs}ms)`)
+      } else {
+        toast.error(`Backend unhealthy: ${result.error}`)
+      }
+    } finally {
+      setIsTesting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+        Diagnostics
+      </p>
+
+      <div className="grid gap-2 md:grid-cols-2">
+        <div className="rounded-xl border border-border/70 bg-background/55 p-3">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Status</p>
+          <div className="mt-1 flex items-center gap-2">
+            <span
+              className={`size-2 rounded-full ${
+                backendState.mode === "ready"
+                  ? "bg-emerald-500"
+                  : backendState.mode === "error"
+                    ? "bg-red-500"
+                    : "bg-amber-400"
+              }`}
+            />
+            <span className="text-sm font-medium capitalize">{backendState.mode}</span>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">{backendState.detail}</p>
+        </div>
+
+        <div className="rounded-xl border border-border/70 bg-background/55 p-3">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            Health check
+          </p>
+          <div className="mt-1.5 flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 rounded-lg text-xs"
+              onClick={() => void handleTestHealth()}
+              disabled={isTesting}
+            >
+              {isTesting ? "Testing…" : "Test connection"}
+            </Button>
+            {healthResult && (
+              <span
+                className={`text-xs ${healthResult.ok ? "text-emerald-500" : "text-red-400"}`}
+              >
+                {healthResult.ok
+                  ? `OK (${healthResult.latencyMs}ms)`
+                  : healthResult.error}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {backendState.mode === "error" && (
+        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-3">
+          <p className="text-sm font-medium text-red-400">Troubleshooting</p>
+          <ul className="mt-1.5 space-y-1 text-xs leading-relaxed text-muted-foreground">
+            <li>• Ensure Node.js is installed and available in your PATH</li>
+            <li>• Check that the Cubicles runtime is bundled correctly</li>
+            <li>• Try restarting the application</li>
+            <li>• Review the backend logs below for specific errors</li>
+          </ul>
+        </div>
+      )}
+
+      {logs.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowLogs(!showLogs)}
+            className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground hover:text-foreground"
+          >
+            Backend logs ({logs.length} lines) {showLogs ? "▾" : "▸"}
+          </button>
+          {showLogs && (
+            <pre className="mt-2 max-h-48 overflow-auto rounded-xl border border-border/70 bg-background/55 p-3 font-mono text-xs leading-5 text-muted-foreground">
+              {logs.join("\n")}
+            </pre>
+          )}
+        </div>
+      )}
     </div>
   )
 }
