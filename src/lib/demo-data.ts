@@ -4,7 +4,6 @@ export type SessionSummary = {
   workspace: string
   preview: string
   updatedAtLabel: string
-  messageCount: number
   status: "live" | "ready" | "idle"
 }
 

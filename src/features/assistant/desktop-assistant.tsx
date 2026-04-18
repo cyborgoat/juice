@@ -147,7 +147,6 @@ export function DesktopAssistant() {
         ? "Active Cubicles session"
         : "Synced from the local Cubicles server.",
       updatedAtLabel: new Date(session.updated_at).toLocaleString(),
-      messageCount: session.message_count,
       status: session.is_active ? "live" : "ready",
     }))
   }, [backendState.mode, localSessions, sessionsQuery.data])
@@ -356,7 +355,6 @@ export function DesktopAssistant() {
       workspace: "juice",
       preview: "Fresh session ready for Cubicles-backed chat wiring.",
       updatedAtLabel: "Just now",
-      messageCount: 1,
       status: "ready",
     }
 

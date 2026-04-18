@@ -103,11 +103,7 @@ export function SessionSidebar({
       </SidebarHeader>
 
       <SidebarContent className="min-h-0 px-2 pb-2">
-        <div className="px-2 py-2 text-[11px] text-muted-foreground">
-          {filteredSessions.length} sessions
-        </div>
-
-        <SidebarMenu className="gap-1 pb-2">
+        <SidebarMenu className="gap-1 py-2">
           {filteredSessions.map((session, index) => {
             const isActive = session.id === selectedSessionId
 
