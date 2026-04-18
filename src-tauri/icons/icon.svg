@@ -1,49 +1,101 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <defs>
-    <linearGradient id="juice-bg" x1="72" y1="56" x2="448" y2="456" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#16181F" />
-      <stop offset="1" stop-color="#090B11" />
+    <linearGradient id="juice" x1="180" y1="140" x2="340" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFBE56"/>
+      <stop offset=".45" stop-color="#F76A2B"/>
+      <stop offset="1" stop-color="#E84393"/>
     </linearGradient>
-    <linearGradient id="juice-drop" x1="176" y1="120" x2="364" y2="384" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#7C3AED" />
-      <stop offset=".55" stop-color="#5B5CF6" />
-      <stop offset="1" stop-color="#22D3EE" />
+    <linearGradient id="glass-edge" x1="150" y1="150" x2="370" y2="150" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".25"/>
+      <stop offset=".5" stop-color="white" stop-opacity=".08"/>
+      <stop offset="1" stop-color="white" stop-opacity=".2"/>
     </linearGradient>
-    <linearGradient id="juice-spark" x1="330" y1="126" x2="400" y2="192" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#C4B5FD" />
-      <stop offset="1" stop-color="#67E8F9" />
+    <linearGradient id="highlight" x1="175" y1="170" x2="195" y2="430" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity=".45"/>
+      <stop offset="1" stop-color="white" stop-opacity="0"/>
     </linearGradient>
-    <filter id="juice-glow" x="123" y="85" width="284" height="341" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
-      <feFlood flood-opacity="0" result="BackgroundImageFix" />
-      <feGaussianBlur in="BackgroundImageFix" stdDeviation="18" />
-      <feComposite in2="SourceAlpha" operator="in" result="effect1_backgroundBlur_1_1" />
-      <feBlend in="SourceGraphic" in2="effect1_backgroundBlur_1_1" result="shape" />
-      <feGaussianBlur result="effect2_foregroundBlur_1_1" stdDeviation="5" />
-    </filter>
+    <linearGradient id="straw-g" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FF6B6B"/>
+      <stop offset="1" stop-color="#EE5A24"/>
+    </linearGradient>
+    <linearGradient id="mint1" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#5EE2A0"/>
+      <stop offset="1" stop-color="#2DB87A"/>
+    </linearGradient>
+    <linearGradient id="mint2" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#45D48A"/>
+      <stop offset="1" stop-color="#1FA068"/>
+    </linearGradient>
+    <clipPath id="glass-clip">
+      <path d="M168 168h184l-24 272c-1 14-13 26-28 26h-80c-15 0-27-12-28-26L168 168Z"/>
+    </clipPath>
   </defs>
-  <rect width="512" height="512" rx="120" fill="url(#juice-bg)" />
-  <rect x="28" y="28" width="456" height="456" rx="92" stroke="rgba(255,255,255,.08)" stroke-width="2" />
-  <circle cx="392" cy="126" r="62" fill="#7C3AED" fill-opacity=".16" />
-  <circle cx="144" cy="390" r="88" fill="#22D3EE" fill-opacity=".08" />
-  <g filter="url(#juice-glow)">
-    <path
-      d="M260 116c-12 48-44 77-77 116-27 31-44 70-44 112 0 74 60 134 134 134s134-60 134-134c0-42-17-81-44-112-33-39-65-68-77-116-2-8-13-8-15 0Z"
-      fill="url(#juice-drop)"
-    />
+
+  <!-- Glass body (juice fill) -->
+  <path
+    d="M168 168h184l-24 272c-1 14-13 26-28 26h-80c-15 0-27-12-28-26L168 168Z"
+    fill="url(#juice)"
+  />
+
+  <!-- Glass transparency overlay -->
+  <path
+    d="M168 168h184l-24 272c-1 14-13 26-28 26h-80c-15 0-27-12-28-26L168 168Z"
+    fill="url(#glass-edge)"
+  />
+
+  <!-- Left glass reflection streak -->
+  <path
+    d="M182 178h10l-8 260h-6z"
+    fill="url(#highlight)"
+    clip-path="url(#glass-clip)"
+  />
+
+  <!-- Right subtle reflection -->
+  <path
+    d="M334 178h5l-6 200h-4z"
+    fill="white" fill-opacity=".1"
+    clip-path="url(#glass-clip)"
+  />
+
+  <!-- Bubbles inside juice -->
+  <circle cx="228" cy="300" r="9" fill="white" fill-opacity=".18" clip-path="url(#glass-clip)"/>
+  <circle cx="270" cy="380" r="6" fill="white" fill-opacity=".14" clip-path="url(#glass-clip)"/>
+  <circle cx="305" cy="320" r="7" fill="white" fill-opacity=".16" clip-path="url(#glass-clip)"/>
+  <circle cx="248" cy="415" r="5" fill="white" fill-opacity=".12" clip-path="url(#glass-clip)"/>
+
+  <!-- Glass rim — thin glass edge, not a lid -->
+  <path
+    d="M164 168h192"
+    stroke="white" stroke-opacity=".75" stroke-width="4" stroke-linecap="round"
+  />
+  <!-- Rim inner highlight -->
+  <path
+    d="M174 170h172"
+    stroke="white" stroke-opacity=".2" stroke-width="2" stroke-linecap="round"
+  />
+
+  <!-- Straw — smooth, colored, reaches near bottom of glass -->
+  <g transform="rotate(12 308 260)">
+    <rect x="304" y="16" width="10" height="400" rx="5" fill="url(#straw-g)"/>
+    <!-- White stripe on straw for depth -->
+    <rect x="306" y="16" width="3" height="400" rx="1.5" fill="white" fill-opacity=".2"/>
   </g>
+
+  <!-- Mint leaves on rim -->
   <path
-    d="M320 220c0-35-28-63-63-63h-34c-35 0-63 28-63 63 0 31 23 58 53 63v44c0 6 8 9 12 4l36-42h8c35 0 63-28 63-63Z"
-    fill="#F8FAFC"
-    fill-opacity=".94"
+    d="M314 152c10-32 30-50 44-56 0 16-8 36-22 48-7 6-14 10-22 10l0-2Z"
+    fill="url(#mint1)"
   />
   <path
-    d="m227 223 34 34m0-34-34 34"
-    stroke="#6D28D9"
-    stroke-linecap="round"
-    stroke-width="18"
+    d="M308 148c12-34 34-54 48-58-2 18-14 40-28 52-8 6-16 10-22 10l2-4Z"
+    fill="url(#mint2)"
   />
+  <!-- Leaf vein -->
   <path
-    d="m366 104 12 28 28 12-28 12-12 28-12-28-28-12 28-12 12-28Z"
-    fill="url(#juice-spark)"
+    d="M318 150c6-22 20-38 34-48"
+    stroke="#2DB87A" stroke-width="1.2" stroke-opacity=".5" fill="none"
   />
+
+  <!-- Bottom glass base reflection -->
+  <ellipse cx="268" cy="462" rx="45" ry="3" fill="white" fill-opacity=".06"/>
 </svg>
