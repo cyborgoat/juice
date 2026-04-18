@@ -4,92 +4,99 @@ Desktop shell for a personal AI assistant built with **Tauri + Vite + React**, u
 
 ## What Juice is
 
-Juice is a desktop-first UI layer around Cubicles.
+Juice is a slim, modern desktop UI layer around Cubicles.
 
-Today, Juice:
+**Chat**
+- Streams chat responses from Cubicles via SSE (`/api/chat/stream`)
+- Renders assistant markdown with syntax-highlighted code blocks (Shiki)
+- Renders collapsible thinking sections from live `<think>` blocks and persisted history
+- Renders slash command / result pairs inline in the transcript
+- Inline approve / reject / redirect controls for pending tool approvals
+- Slash command autocomplete popup above the composer (compact, keyboard-navigable)
+- Transcript export — downloads session as Markdown with a Sonner toast showing the save path
+- Command palette (⌘K) for quick actions: new session, settings, export, delete
 
-- launches a local Cubicles server from `/Users/goatcheese/Documents/repositories/cubicles-ts`
-- checks backend health and shows connection state in the UI
-- lists and activates real Cubicles sessions
-- creates and deletes sessions from the desktop sidebar
-- creates sessions through the Cubicles API
-- streams chat responses from `/api/chat/stream`
-- executes Cubicles slash commands through `GET/POST /api/slash`
-- autocompletes slash commands, subcommands, sessions, and profiles directly in the composer
-- rehydrates persisted session history from Cubicles by session ID
-- renders assistant markdown with collapsible thinking sections from both live responses and persisted history
-- renders slash command/result pairs inline in the transcript
-- provides inline approve / reject / redirect controls for pending tool approvals
-- uses a shadcn `Sidebar` with offcanvas collapse for session navigation and hover-only session actions
-- multi-tab Settings page (Overview · Profiles · Memory · APIs · Extensions · Skills)
-- workspace management in Settings (list, register, edit, set default, delete)
-- profile create/edit/delete with shadcn `Field` forms and `Sonner` toast feedback
-- memory file configuration (MEMORY.md path)
-- API key registration and enable/disable via shadcn `Toggle`
-- extension and skill enable/default toggles
-- stable full-width chat layout with flat flex structure (no rerender-induced shrink)
-- bundles a packaged Cubicles runtime snapshot for `tauri build`, while still using the live `cubicles-ts` checkout in development
+**Sessions**
+- Lists, creates, activates, and deletes Cubicles sessions from the sidebar
+- Sidebar search/filter by title, workspace, or preview text
+- Rehydrates full persisted session history on activation
+- Handles `turn_summary` and `compressing` events from the Cubicles stream
 
-Juice does **not** currently import `@cubicles/*` directly into the app bundle. It supervises Cubicles as a separate local process and talks to it over HTTP/SSE.
+**Settings** — multi-tab dialog with compact, dialog-based create/edit forms:
+- **Overview** — backend health, connection diagnostics, provider hints
+- **Profiles** — create (dialog), edit, set default, delete
+- **Workspaces** — register (dialog), edit, set default, delete
+- **Memory** — MEMORY.md path configuration
+- **APIs** — description-only rows; register (dialog), edit (pencil dialog), enable/disable, delete
+- **Extensions** — enable/default toggles
+- **Skills** — enable/default toggles
+- **Harness** — full harness configuration surface (budget, steps, reserve multipliers, etc.)
 
-## Current architecture
+**Appearance**
+- Custom SVG app icon (juice glass)
+- Tropical color scheme with light/dark mode toggle
+- Slim, modern layout — no bulky components
 
-Juice is split into three pieces:
+**Packaging**
+- Bundles a packaged Cubicles runtime snapshot for `tauri build`
+- Uses the live `cubicles-ts` checkout in development (always rebuilds on start)
 
-1. **Tauri shell**
-   - owns the desktop window
-   - launches the Cubicles backend through the shell plugin
-   - handles local process supervision
-2. **React UI**
-   - renders the sidebar, chat transcript, composer, and connection state
-3. **Cubicles runtime**
-   - remains the source of truth for sessions, profiles, workspaces, tools, skills, approvals, and model execution
+Juice does **not** import `@cubicles/*` directly into the app bundle. It supervises Cubicles as a separate local process and communicates over HTTP/SSE.
+
+## Architecture
+
+```
+┌─────────────────────────────────────┐
+│  Tauri shell                        │
+│  – desktop window                   │
+│  – Cubicles process supervision     │
+│  – shell plugin + FS plugin         │
+└───────────────┬─────────────────────┘
+                │ HTTP / SSE
+┌───────────────▼─────────────────────┐
+│  React UI (Vite + shadcn)           │
+│  – sidebar, transcript, composer    │
+│  – settings (8 tabs)                │
+│  – command palette, toasts          │
+└───────────────┬─────────────────────┘
+                │ local API  127.0.0.1:7799
+┌───────────────▼─────────────────────┐
+│  Cubicles runtime                   │
+│  – sessions, profiles, workspaces   │
+│  – tools, skills, approvals         │
+│  – model / provider execution       │
+└─────────────────────────────────────┘
+```
 
 More detail:
 
 - [`docs/how-juice-works.md`](docs/how-juice-works.md)
 - [`docs/cubicles-integration.md`](docs/cubicles-integration.md)
-- [`todo.md`](todo.md)
 
 ## Local Cubicles dependency
 
-Juice currently expects your Cubicles workspace at:
+Juice expects your Cubicles workspace at:
 
 ```text
 /Users/goatcheese/Documents/repositories/cubicles-ts
 ```
 
-The desktop backend bootstrap builds and runs the server from that workspace.
-
-Current managed backend target:
-
-```text
-http://127.0.0.1:7799
-```
+Backend target: `http://127.0.0.1:7799`
 
 ## Scripts
 
 ```bash
-npm install
-npm run dev
-npm run lint
-npm run build
-npm run package:runtime
-npm run tauri:dev
-npm run tauri:build
+npm install          # install dependencies
+npm run dev          # start Vite dev server
+npm run lint         # ESLint
+npm run build        # production Vite build
+npm run package:runtime   # snapshot cubicles-ts into src-tauri/resources
+npm run tauri:dev    # Tauri dev window
+npm run tauri:build  # packaged macOS app
 ```
 
-## Native requirements
+## Requirements
 
-- Node.js
-- Rust toolchain
-
-## Current limitations
-
-Juice is already using real Cubicles chat streaming, but several desktop surfaces are still missing:
-
-- richer structured rendering for some slash and tool outputs
-- more robust recovery for persisted pending approvals after reopening older sessions
-- friendlier packaged-runtime diagnostics and recovery guidance
-
-Those are tracked in [`todo.md`](todo.md).
+- Node.js 20+
+- Rust toolchain (for Tauri)
+- A built Cubicles workspace at the path above
