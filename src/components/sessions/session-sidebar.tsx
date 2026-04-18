@@ -1,5 +1,5 @@
 import { motion } from "motion/react"
-import { MessageSquarePlus, Search, Settings2, X } from "lucide-react"
+import { MessageSquarePlus, Search, Settings2, Trash2, X } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -9,8 +9,9 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarInput,
-  SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
+  SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
@@ -26,6 +27,8 @@ type SessionSidebarProps = {
   onSelectSession: (sessionId: string) => void
   onCreateSession: () => void
   onOpenSettings: () => void
+  onDeleteSession?: (sessionId: string) => void
+  isMutatingSession?: boolean
 }
 
 export function SessionSidebar({
@@ -35,6 +38,8 @@ export function SessionSidebar({
   onSelectSession,
   onCreateSession,
   onOpenSettings,
+  onDeleteSession,
+  isMutatingSession = false,
 }: SessionSidebarProps) {
   const { isMobile, setOpen, setOpenMobile } = useSidebar()
   const [query, setQuery] = useState("")
@@ -110,6 +115,7 @@ export function SessionSidebar({
             return (
               <SidebarMenuItem key={session.id}>
                 <motion.div
+                  className="group/session"
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.04, duration: 0.24 }}
@@ -134,17 +140,32 @@ export function SessionSidebar({
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
                       {session.title}
                     </span>
-                    {isActive ? (
-                      <span className="shrink-0 text-[11px] text-primary">Active</span>
-                    ) : null}
                   </SidebarMenuButton>
-                  <SidebarMenuBadge className="right-2 top-2.5">
+
+                  <SidebarMenuBadge className="right-8 top-1/2 -translate-y-1/2 rounded-full bg-background/75 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {session.messageCount}
                   </SidebarMenuBadge>
+
+                  {onDeleteSession ? (
+                    <SidebarMenuAction
+                      type="button"
+                      showOnHover
+                      className="right-1 top-1/2 -translate-y-1/2 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                      disabled={isMutatingSession}
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        onDeleteSession(session.id)
+                      }}
+                    >
+                      <Trash2 className="size-3.5" />
+                      <span className="sr-only">Delete session</span>
+                    </SidebarMenuAction>
+                  ) : null}
                 </motion.div>
               </SidebarMenuItem>
             )
-          })}
+           })}
 
           {!filteredSessions.length ? (
             <div className="rounded-xl border border-dashed border-sidebar-border bg-background/40 p-4 text-sm leading-5 text-muted-foreground">

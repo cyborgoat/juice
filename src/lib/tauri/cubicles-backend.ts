@@ -1,5 +1,8 @@
 import { isTauri } from "@tauri-apps/api/core"
+import { join, resourceDir } from "@tauri-apps/api/path"
 import { Child, Command } from "@tauri-apps/plugin-shell"
+
+import { createLogger } from "@/lib/logger"
 
 export type CubiclesBackendState =
   | {
@@ -26,6 +29,7 @@ const CUBICLES_ROOT = "/Users/goatcheese/Documents/repositories/cubicles-ts"
 const JUICE_ROOT = "/Users/goatcheese/Documents/repositories/juice"
 const API_BASE = `http://${CUBICLES_HOST}:${CUBICLES_PORT}/api`
 const HEALTH_URL = `http://${CUBICLES_HOST}:${CUBICLES_PORT}/health`
+const logger = createLogger("cubicles-backend")
 
 let backendChild: Child | null = null
 let backendStartPromise: Promise<CubiclesBackendState> | null = null
@@ -42,6 +46,7 @@ async function waitForHealth(timeoutMs = 30_000) {
     try {
       const response = await fetch(HEALTH_URL)
       if (response.ok) {
+        logger.debug("Health check passed")
         return true
       }
     } catch {
@@ -51,11 +56,13 @@ async function waitForHealth(timeoutMs = 30_000) {
     await new Promise((resolve) => window.setTimeout(resolve, 500))
   }
 
+  logger.warn("Health checks timed out", { timeoutMs })
   return false
 }
 
 export async function ensureCubiclesBackend(): Promise<CubiclesBackendState> {
   if (!isTauri()) {
+    logger.info("Skipping backend supervision in browser preview mode")
     return {
       mode: "browser-preview",
       apiBase: API_BASE,
@@ -64,6 +71,10 @@ export async function ensureCubiclesBackend(): Promise<CubiclesBackendState> {
   }
 
   if (await waitForHealth(500)) {
+    logger.info("Reusing reachable Cubicles backend", {
+      apiBase: API_BASE,
+      pid: backendChild?.pid ?? null,
+    })
     return {
       mode: "ready",
       apiBase: API_BASE,
@@ -73,65 +84,99 @@ export async function ensureCubiclesBackend(): Promise<CubiclesBackendState> {
   }
 
   if (!backendStartPromise) {
+    logger.info("Starting Cubicles backend")
     backendStartPromise = startCubiclesBackend()
+  } else {
+    logger.debug("Awaiting existing Cubicles backend startup")
   }
 
   return backendStartPromise
 }
 
 async function startCubiclesBackend(): Promise<CubiclesBackendState> {
+  const bundledResourceRoot = import.meta.env.DEV ? null : await resourceDir()
+  const bundledCubiclesRoot = bundledResourceRoot
+    ? await join(bundledResourceRoot, "cubicles-runtime")
+    : null
+  const scriptRoot = import.meta.env.DEV
+    ? `${JUICE_ROOT}/scripts`
+    : bundledResourceRoot
+      ? await join(bundledResourceRoot, "juice-scripts")
+      : `${JUICE_ROOT}/scripts`
   const commandEnv = {
     JUICE_CUBICLES_ROOT: CUBICLES_ROOT,
+    JUICE_BUNDLED_CUBICLES_ROOT: bundledCubiclesRoot ?? "",
+    JUICE_SCRIPT_ROOT: scriptRoot,
     HOST: CUBICLES_HOST,
     PORT: `${CUBICLES_PORT}`,
   }
 
   try {
     backendLogs.length = 0
+    logger.info("Building Cubicles runtime", {
+      scriptRoot,
+      bundled: !import.meta.env.DEV,
+    })
 
     const buildResult = await Command.create(
       "build-cubicles-server",
       [],
       {
-        cwd: JUICE_ROOT,
+        cwd: scriptRoot,
         env: commandEnv,
       }
     ).execute()
 
     if (buildResult.code !== 0) {
+      logger.error("Cubicles runtime build failed", {
+        code: buildResult.code,
+        stderr: buildResult.stderr,
+      })
       throw new Error(buildResult.stderr || "Cubicles build failed.")
     }
+
+    logger.info("Cubicles runtime build completed")
 
     const command = Command.create(
       "run-cubicles-server",
       [],
       {
-        cwd: JUICE_ROOT,
+        cwd: scriptRoot,
         env: commandEnv,
       }
     )
 
     command.stdout.on("data", (line) => {
       backendLogs.push(line)
+      logger.debug("Cubicles stdout", line)
     })
     command.stderr.on("data", (line) => {
       backendLogs.push(line)
+      logger.warn("Cubicles stderr", line)
     })
     command.on("close", ({ code, signal }) => {
       backendLogs.push(`cubicles-server closed (code=${code}, signal=${signal})`)
+      logger.warn("Cubicles backend closed", { code, signal })
       backendChild = null
       backendStartPromise = null
     })
     command.on("error", (error) => {
       backendLogs.push(`cubicles-server error: ${error}`)
+      logger.error("Cubicles backend process error", error)
     })
 
     backendChild = await command.spawn()
+    logger.info("Cubicles backend spawned", { pid: backendChild.pid })
 
     const isHealthy = await waitForHealth()
     if (!isHealthy) {
       throw new Error("Cubicles server did not pass health checks before timeout.")
     }
+
+    logger.info("Cubicles backend is ready", {
+      apiBase: API_BASE,
+      pid: backendChild.pid,
+    })
 
     return {
       mode: "ready",
@@ -141,6 +186,7 @@ async function startCubiclesBackend(): Promise<CubiclesBackendState> {
     }
   } catch (error) {
     backendStartPromise = null
+    logger.error("Failed to start Cubicles backend", error)
 
     return {
       mode: "error",
@@ -156,6 +202,7 @@ export async function stopCubiclesBackend() {
     return
   }
 
+  logger.info("Stopping Cubicles backend", { pid: backendChild.pid })
   await backendChild.kill()
   backendChild = null
   backendStartPromise = null

@@ -59,6 +59,7 @@ export type CubiclesSessionResponse = {
   is_active: boolean
   workspace_id: string
   workspace_name: string
+  workspace_path: string
   message_count: number
   updated_at: string
 }
@@ -170,6 +171,39 @@ export type CubiclesWorkspaceResponse = {
   description: string
   exists: boolean
   is_default: boolean
+}
+
+export type CubiclesSlashCommand = {
+  name: string
+  description?: string
+}
+
+export type CubiclesSlashListResponse = {
+  commands: CubiclesSlashCommand[]
+}
+
+export type CubiclesSlashExecutionRequest = {
+  command: string
+  session_id?: string | null
+  profile_name?: string
+  workspace_id?: string | null
+}
+
+export type CubiclesSlashExecutionResponse = {
+  output: string[]
+  session_id: string
+  workspace_path: string
+  continue: boolean
+}
+
+export type CubiclesPendingApproval = {
+  approvalId: string
+  sessionId: string
+  pendingTool: Record<string, unknown>
+  currentStep: number
+  maxSteps: number
+  profileName: string
+  workspacePath: string
 }
 
 export type CubiclesChatStreamRequest = {

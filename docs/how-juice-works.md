@@ -8,6 +8,8 @@ The app is split into three layers:
 
 - **Tauri** provides the desktop window and native shell access.
 - The shell plugin is used to build and start a local Cubicles server process.
+- In development, Juice starts the live `cubicles-ts` checkout.
+- In packaged builds, `tauri build` snapshots Cubicles into `src-tauri/resources/cubicles-runtime` using npm tarballs plus a production-only install, then launches that bundled runtime instead.
 - Juice currently targets a dedicated local backend port:
 
 ```text
@@ -18,6 +20,9 @@ Relevant files:
 
 - `src-tauri/src/lib.rs`
 - `src-tauri/capabilities/default.json`
+- `scripts/package-cubicles-runtime.mjs`
+- `scripts/build-cubicles-server.mjs`
+- `scripts/run-cubicles-server.mjs`
 - `src/lib/tauri/cubicles-backend.ts`
 
 ## 2. React UI
@@ -25,11 +30,17 @@ Relevant files:
 - **Vite + React** render the full-width chat screen, settings surfaces, and shadcn sidebar.
 - `DesktopAssistant` owns the app-level flow for backend startup, session loading, history loading, and chat streaming.
 - Layout uses a flat flex structure inside `SidebarInset`: `header` → scrollable transcript (`flex-1 overflow-y-auto`) → composer (`shrink-0`). This prevents rerender-induced width/height collapse.
+- The composer calls Cubicles slash endpoints directly, shows inline autocomplete, and keeps slash command/result pairs in the transcript instead of treating them as a separate mode.
+- The session sidebar supports create, select, and delete flows against the real Cubicles API.
+- Session deletion is routed through Cubicles' shared slash-command path (`/sessions delete <id>`) so Juice follows the backend-selected active session after a delete.
 - The transcript renders:
   - user bubbles
   - assistant markdown replies
-  - collapsible thinking sections — only rendered for **closed** `<think>...</think>` blocks; unclosed tags are treated as plain content
+  - slash command/result entries
+  - collapsible thinking sections — rendered from **closed** `<think>...</think>` blocks and from persisted `thinking` history rows returned by Cubicles
   - tool and system entries
+  - inline approval actions for pending tools (approve, reject, redirect with note)
+- Settings now includes workspace management alongside profiles, memory, APIs, extensions, and skills.
 - Settings uses shadcn `Tabs` (top nav), `Toggle` for enable/default controls, `Field`/`FieldGroup` for create/edit forms, and `Sonner` toast for feedback.
 
 Relevant files:
@@ -78,13 +89,11 @@ After backend startup, the UI uses the local Cubicles API:
 - `POST /api/sessions`
 - `POST /api/sessions/:id/activate`
 - `POST /api/chat/stream`
-
-Cubicles also already exposes:
-
+- `GET /api/chat/pending/:sessionId`
 - `GET /api/slash`
 - `POST /api/slash`
 
-Those slash endpoints are not fully surfaced in Juice yet, but they are available in the backend and are part of the planned desktop roadmap.
+Juice uses `/api/slash` for inline slash execution, shared session deletion, and `/api/chat/pending/:sessionId` to restore pending approvals when reopening a live session.
 
 ## Why there is no `@cubicles/*` import in Juice
 

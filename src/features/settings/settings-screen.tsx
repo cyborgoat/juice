@@ -3,10 +3,12 @@ import { useMemo, useState } from "react"
 import { toast } from "sonner"
 
 import {
+  createCubiclesWorkspace,
   createCubiclesApi,
   createCubiclesProfile,
   deleteCubiclesApi,
   deleteCubiclesProfile,
+  deleteCubiclesWorkspace,
   fetchCubiclesApiGroups,
   fetchCubiclesApis,
   fetchCubiclesMemoryDocument,
@@ -15,13 +17,16 @@ import {
   fetchCubiclesSettings,
   fetchCubiclesSkills,
   fetchCubiclesToolCatalog,
+  fetchCubiclesWorkspaces,
   scanCubiclesSkills,
+  setCubiclesDefaultWorkspace,
   setCubiclesExtensionEnabled,
   setCubiclesSkillEnabled,
   updateCubiclesApi,
   updateCubiclesMemoryDocument,
   updateCubiclesProfile,
   updateCubiclesSettings,
+  updateCubiclesWorkspace,
 } from "@/lib/cubicles-api/client"
 import type {
   CubiclesApiParameter,
@@ -29,6 +34,7 @@ import type {
   CubiclesProfileDetailResponse,
   CubiclesSkillResponse,
   CubiclesToolRecord,
+  CubiclesWorkspaceResponse,
 } from "@/lib/cubicles-api/types"
 import { type CubiclesBackendState } from "@/lib/tauri/cubicles-backend"
 import { Badge } from "@/components/ui/badge"
@@ -50,7 +56,7 @@ type SettingsScreenProps = {
   backendState: CubiclesBackendState
 }
 
-type SettingsTab = "overview" | "profiles" | "memory" | "apis" | "extensions" | "skills"
+type SettingsTab = "overview" | "profiles" | "workspaces" | "memory" | "apis" | "extensions" | "skills"
 
 export function SettingsScreen({ backendState }: SettingsScreenProps) {
   const queryClient = useQueryClient()
@@ -67,6 +73,11 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
   const [newApiDescription, setNewApiDescription] = useState("")
   const [newApiMaxChars, setNewApiMaxChars] = useState("4000")
   const [newApiParametersJson, setNewApiParametersJson] = useState("[]")
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("")
+  const [newWorkspaceId, setNewWorkspaceId] = useState("")
+  const [newWorkspaceName, setNewWorkspaceName] = useState("")
+  const [newWorkspacePath, setNewWorkspacePath] = useState("")
+  const [newWorkspaceDescription, setNewWorkspaceDescription] = useState("")
   const isReady = backendState.mode === "ready"
 
   const settingsQuery = useQuery({
@@ -78,6 +89,12 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
   const profilesQuery = useQuery({
     queryKey: ["cubicles", "profiles"],
     queryFn: fetchCubiclesProfiles,
+    enabled: isReady,
+  })
+
+  const workspacesQuery = useQuery({
+    queryKey: ["cubicles", "workspaces"],
+    queryFn: fetchCubiclesWorkspaces,
     enabled: isReady,
   })
 
@@ -132,6 +149,32 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
     [settingsQuery.data?.providers]
   )
 
+  const effectiveSelectedWorkspaceId = useMemo(() => {
+    if (!workspacesQuery.data?.length) {
+      return ""
+    }
+
+    if (selectedWorkspaceId) {
+      const match = workspacesQuery.data.find((workspace) => workspace.id === selectedWorkspaceId)
+      if (match) {
+        return match.id
+      }
+    }
+
+    return (
+      settingsQuery.data?.default_workspace_id ??
+      workspacesQuery.data.find((workspace) => workspace.is_default)?.id ??
+      workspacesQuery.data[0]?.id ??
+      ""
+    )
+  }, [selectedWorkspaceId, settingsQuery.data?.default_workspace_id, workspacesQuery.data])
+
+  const selectedWorkspace = useMemo(
+    () =>
+      workspacesQuery.data?.find((workspace) => workspace.id === effectiveSelectedWorkspaceId) ?? null,
+    [effectiveSelectedWorkspaceId, workspacesQuery.data]
+  )
+
   const skillsQuery = useQuery({
     queryKey: ["cubicles", "skills", toolingProfileName],
     queryFn: () => fetchCubiclesSkills(toolingProfileName),
@@ -168,6 +211,7 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["cubicles", "settings"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "profiles"] }),
+      queryClient.invalidateQueries({ queryKey: ["cubicles", "workspaces"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "profile-detail"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "memory-document", "memory"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "apis"] }),
@@ -254,6 +298,29 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
     showFeedback(`Created API '${trimmedName}'.`)
   }
 
+  async function handleCreateWorkspace() {
+    const trimmedPath = newWorkspacePath.trim()
+    if (!trimmedPath) {
+      showFeedback("Workspace path is required.")
+      return
+    }
+
+    const createdWorkspace = await createCubiclesWorkspace({
+      id: newWorkspaceId.trim() || null,
+      name: newWorkspaceName.trim() || null,
+      path: trimmedPath,
+      description: newWorkspaceDescription.trim(),
+    })
+
+    await refreshSettingsData()
+    setSelectedWorkspaceId(createdWorkspace.id)
+    setNewWorkspaceId("")
+    setNewWorkspaceName("")
+    setNewWorkspacePath("")
+    setNewWorkspaceDescription("")
+    showFeedback(`Created workspace '${createdWorkspace.name}'.`)
+  }
+
   const tabs = [
     {
       id: "overview",
@@ -264,6 +331,11 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
       id: "profiles",
       label: "Profiles",
       description: `${profilesQuery.data?.length ?? 0} configured`,
+    },
+    {
+      id: "workspaces",
+      label: "Workspaces",
+      description: `${workspacesQuery.data?.length ?? 0} available`,
     },
     {
       id: "memory",
@@ -309,27 +381,17 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
           onValueChange={(value) => setActiveTab(value as SettingsTab)}
           className="gap-4"
         >
-          <div className="rounded-2xl border border-border/70 bg-card/65 p-2">
-            <div className="mb-2 px-2 py-2">
-              <div>
-                <p className="text-sm font-semibold">Settings</p>
-                <p className="text-xs text-muted-foreground">Cubicles-backed configuration</p>
-              </div>
-            </div>
-
-            <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto rounded-xl bg-transparent p-0">
-              {tabs.map((tab) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className="min-w-[9rem] flex-1 flex-col items-start rounded-xl border border-border/70 bg-background/50 px-3 py-2 text-left hover:bg-background/80 data-active:bg-primary/10 sm:min-w-[10rem]"
-                >
-                  <span className="text-sm font-medium">{tab.label}</span>
-                  <span className="text-xs text-muted-foreground">{tab.description}</span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </div>
+          <TabsList className="h-auto w-full justify-start gap-2 overflow-x-auto bg-transparent p-0">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="h-auto min-w-fit shrink-0 justify-center overflow-hidden rounded-xl border border-border/70 bg-background/50 px-4 text-left leading-none hover:bg-background/80 data-active:bg-primary/10"
+              >
+                <span className="block truncate text-sm font-medium">{tab.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
           <section className="min-w-0">
             <TabsContent value="overview">
@@ -473,6 +535,110 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
             </div>
             </TabsContent>
 
+            <TabsContent value="workspaces">
+            <div className="rounded-2xl border border-border/70 bg-card/65 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Workspaces</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Register project roots, choose the default workspace, and keep Cubicles session routing aligned with desktop context.
+                  </p>
+                </div>
+                <Badge variant="secondary" className="rounded-full">
+                  {workspacesQuery.data?.length ?? 0} workspaces
+                </Badge>
+              </div>
+
+              <div className="mt-4 grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
+                <div className="space-y-2">
+                  {workspacesQuery.data?.map((workspace) => (
+                    <Toggle
+                      key={workspace.id}
+                      pressed={effectiveSelectedWorkspaceId === workspace.id}
+                      onClick={() => setSelectedWorkspaceId(workspace.id)}
+                      variant="outline"
+                      className="flex h-auto w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm data-[state=on]:border-primary/30 data-[state=on]:bg-primary/10"
+                    >
+                      <span className="min-w-0 truncate">{workspace.name}</span>
+                      <span className="shrink-0 text-[11px] text-muted-foreground">
+                        {workspace.is_default ? "default" : workspace.exists ? "ready" : "missing"}
+                      </span>
+                    </Toggle>
+                  ))}
+                </div>
+
+                {selectedWorkspace ? (
+                  <WorkspaceEditor
+                    key={selectedWorkspace.id}
+                    workspace={selectedWorkspace}
+                    onFeedback={showFeedback}
+                    onRefresh={refreshSettingsData}
+                    onSelectWorkspace={setSelectedWorkspaceId}
+                  />
+                ) : (
+                  <EmptyPanel message="Select a workspace to edit it." />
+                )}
+              </div>
+
+              <div className="mt-4 rounded-xl border border-border/70 bg-background/55 p-3">
+                <FieldSet>
+                  <FieldLegendLike title="Register workspace" />
+                  <FieldGroup className="mt-3">
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Field>
+                        <FieldLabel htmlFor="new-workspace-id">Workspace ID</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            id="new-workspace-id"
+                            value={newWorkspaceId}
+                            onChange={(event) => setNewWorkspaceId(event.target.value)}
+                            placeholder="optional-id"
+                          />
+                        </FieldContent>
+                      </Field>
+                      <Field>
+                        <FieldLabel htmlFor="new-workspace-name">Display name</FieldLabel>
+                        <FieldContent>
+                          <Input
+                            id="new-workspace-name"
+                            value={newWorkspaceName}
+                            onChange={(event) => setNewWorkspaceName(event.target.value)}
+                            placeholder="Workspace name"
+                          />
+                        </FieldContent>
+                      </Field>
+                    </div>
+                    <Field>
+                      <FieldLabel htmlFor="new-workspace-path">Path</FieldLabel>
+                      <FieldContent>
+                        <Input
+                          id="new-workspace-path"
+                          value={newWorkspacePath}
+                          onChange={(event) => setNewWorkspacePath(event.target.value)}
+                          placeholder="/absolute/path/to/workspace"
+                        />
+                      </FieldContent>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="new-workspace-description">Description</FieldLabel>
+                      <FieldContent>
+                        <Textarea
+                          id="new-workspace-description"
+                          value={newWorkspaceDescription}
+                          onChange={(event) => setNewWorkspaceDescription(event.target.value)}
+                          className="min-h-24"
+                        />
+                      </FieldContent>
+                    </Field>
+                    <div>
+                      <Button onClick={() => void handleCreateWorkspace()}>Register workspace</Button>
+                    </div>
+                  </FieldGroup>
+                </FieldSet>
+              </div>
+            </div>
+            </TabsContent>
+
             <TabsContent value="memory">
               {memoryQuery.data ? (
               <MemoryEditor
@@ -534,10 +700,10 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
                         pressed={effectiveSelectedApiName === api.name}
                         onClick={() => setSelectedApiName(api.name)}
                         variant="outline"
-                        className="flex h-auto w-full flex-col items-start rounded-xl px-3 py-2 text-left data-[state=on]:border-primary/30 data-[state=on]:bg-primary/10"
+                        className="flex h-auto w-full min-w-0 flex-col items-start overflow-hidden rounded-xl px-3 py-2 text-left data-[state=on]:border-primary/30 data-[state=on]:bg-primary/10"
                       >
-                        <span className="truncate text-sm font-medium">{api.name}</span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="block w-full truncate text-sm font-medium">{api.name}</span>
+                        <span className="block w-full truncate text-xs text-muted-foreground">
                           {api.group} · {api.enabled ? "enabled" : "disabled"}
                         </span>
                       </Toggle>
@@ -864,6 +1030,145 @@ function ProfileEditor({
         <Button onClick={() => void handleSaveProfile()}>Save profile</Button>
         <Button variant="destructive" onClick={() => void handleDeleteProfile()}>
           Delete profile
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+type WorkspaceEditorProps = {
+  workspace: CubiclesWorkspaceResponse
+  onFeedback: (message: string) => void
+  onRefresh: () => Promise<void>
+  onSelectWorkspace: (id: string) => void
+}
+
+function WorkspaceEditor({
+  workspace,
+  onFeedback,
+  onRefresh,
+  onSelectWorkspace,
+}: WorkspaceEditorProps) {
+  const [workspacePathDraft, setWorkspacePathDraft] = useState(workspace.path)
+  const [workspaceNameDraft, setWorkspaceNameDraft] = useState(workspace.name)
+  const [workspaceDescriptionDraft, setWorkspaceDescriptionDraft] = useState(
+    workspace.description
+  )
+  const [makeDefaultDraft, setMakeDefaultDraft] = useState(workspace.is_default)
+
+  async function handleSaveWorkspace() {
+    await updateCubiclesWorkspace(workspace.id, {
+      path: workspacePathDraft.trim(),
+      name: workspaceNameDraft.trim() || workspace.id,
+      description: workspaceDescriptionDraft.trim(),
+      make_default: makeDefaultDraft,
+    })
+
+    if (makeDefaultDraft && !workspace.is_default) {
+      await updateCubiclesSettings({ default_workspace_id: workspace.id })
+    }
+
+    await onRefresh()
+    onSelectWorkspace(workspace.id)
+    onFeedback("Workspace saved.")
+  }
+
+  async function handleSetDefaultWorkspace() {
+    await setCubiclesDefaultWorkspace(workspace.id)
+    await updateCubiclesSettings({ default_workspace_id: workspace.id })
+    await onRefresh()
+    onSelectWorkspace(workspace.id)
+    onFeedback(`Set '${workspace.name}' as the default workspace.`)
+  }
+
+  async function handleDeleteWorkspace() {
+    await deleteCubiclesWorkspace(workspace.id)
+    await onRefresh()
+    onSelectWorkspace("")
+    onFeedback(`Deleted workspace '${workspace.name}'.`)
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-border/70 bg-background/55 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+              Workspace ID
+            </p>
+            <p className="mt-1 text-sm font-medium">{workspace.id}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {workspace.is_default ? (
+              <Badge className="rounded-full">Default</Badge>
+            ) : null}
+            <Badge variant={workspace.exists ? "secondary" : "outline"} className="rounded-full">
+              {workspace.exists ? "Path exists" : "Path missing"}
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      <FieldGroup>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+          <Field>
+            <FieldLabel htmlFor={`workspace-name-${workspace.id}`}>Display name</FieldLabel>
+            <FieldContent>
+              <Input
+                id={`workspace-name-${workspace.id}`}
+                value={workspaceNameDraft}
+                onChange={(event) => setWorkspaceNameDraft(event.target.value)}
+                placeholder="Workspace name"
+              />
+            </FieldContent>
+          </Field>
+          <Field className="md:w-auto">
+            <FieldLabel>Default workspace</FieldLabel>
+            <Toggle
+              pressed={makeDefaultDraft}
+              onPressedChange={setMakeDefaultDraft}
+              variant="outline"
+              className="rounded-xl px-3"
+            >
+              {makeDefaultDraft ? "Default" : "Set default"}
+            </Toggle>
+          </Field>
+        </div>
+
+        <Field>
+          <FieldLabel htmlFor={`workspace-path-${workspace.id}`}>Path</FieldLabel>
+          <FieldContent>
+            <Input
+              id={`workspace-path-${workspace.id}`}
+              value={workspacePathDraft}
+              onChange={(event) => setWorkspacePathDraft(event.target.value)}
+              placeholder="/absolute/path/to/workspace"
+            />
+          </FieldContent>
+        </Field>
+
+        <Field>
+          <FieldLabel htmlFor={`workspace-description-${workspace.id}`}>Description</FieldLabel>
+          <FieldContent>
+            <Textarea
+              id={`workspace-description-${workspace.id}`}
+              value={workspaceDescriptionDraft}
+              onChange={(event) => setWorkspaceDescriptionDraft(event.target.value)}
+              className="min-h-24"
+            />
+          </FieldContent>
+        </Field>
+      </FieldGroup>
+
+      <div className="flex flex-wrap gap-2">
+        <Button onClick={() => void handleSaveWorkspace()}>Save workspace</Button>
+        {!workspace.is_default ? (
+          <Button variant="secondary" onClick={() => void handleSetDefaultWorkspace()}>
+            Make default
+          </Button>
+        ) : null}
+        <Button variant="destructive" onClick={() => void handleDeleteWorkspace()}>
+          Delete workspace
         </Button>
       </div>
     </div>

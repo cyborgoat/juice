@@ -15,7 +15,7 @@
           "cmd": "/bin/zsh",
           "args": [
             "-lc",
-            "node scripts/build-cubicles-server.mjs"
+            "node \"$JUICE_SCRIPT_ROOT/build-cubicles-server.mjs\""
           ]
         },
         {
@@ -23,7 +23,7 @@
           "cmd": "/bin/zsh",
           "args": [
             "-lc",
-            "node scripts/run-cubicles-server.mjs"
+            "node \"$JUICE_SCRIPT_ROOT/run-cubicles-server.mjs\""
           ]
         }
       ]
@@ -36,7 +36,7 @@
           "cmd": "/bin/zsh",
           "args": [
             "-lc",
-            "node scripts/build-cubicles-server.mjs"
+            "node \"$JUICE_SCRIPT_ROOT/build-cubicles-server.mjs\""
           ]
         },
         {
@@ -44,7 +44,7 @@
           "cmd": "/bin/zsh",
           "args": [
             "-lc",
-            "node scripts/run-cubicles-server.mjs"
+            "node \"$JUICE_SCRIPT_ROOT/run-cubicles-server.mjs\""
           ]
         }
       ]

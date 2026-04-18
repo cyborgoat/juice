@@ -23,16 +23,16 @@ Instead, the desktop app:
 The current desktop app already supports:
 
 - managed Cubicles backend startup
-- real session listing and activation
+- real session listing, activation, and create/delete flows
 - real streamed chat replies
 - compact session drawer UI
 - assistant markdown rendering
 - collapsible embedded thinking sections
+- slash command listing, execution, autocomplete, and transcript echoing
+- persisted session-history rehydration from Cubicles
 
 Still planned:
 
-- settings surfaces
-- slash-command compatibility
-- slash autocomplete
-- desktop approval controls
-- production packaging/runtime bundling
+- richer structured slash/tool rendering
+- approval recovery hardening across reopened sessions
+- production packaging/runtime diagnostics

@@ -7,9 +7,13 @@ import type {
   CubiclesChatStreamRequest,
   CubiclesHealthResponse,
   CubiclesMemoryDocument,
+  CubiclesPendingApproval,
   CubiclesProfileDetailResponse,
   CubiclesProfileUpsertRequest,
   CubiclesProfileSummary,
+  CubiclesSlashExecutionRequest,
+  CubiclesSlashExecutionResponse,
+  CubiclesSlashListResponse,
   CubiclesSessionHistoryMessage,
   CubiclesSessionResponse,
   CubiclesSkillResponse,
@@ -72,6 +76,54 @@ export function fetchCubiclesProfiles() {
 
 export function fetchCubiclesWorkspaces() {
   return fetchCubiclesJson<CubiclesWorkspaceResponse[]>("/workspaces")
+}
+
+export function createCubiclesWorkspace(body: {
+  id?: string | null
+  path: string
+  name?: string | null
+  description?: string
+}) {
+  return fetchCubiclesJson<CubiclesWorkspaceResponse>("/workspaces", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateCubiclesWorkspace(
+  id: string,
+  body: {
+    path?: string | null
+    name?: string | null
+    description?: string | null
+    make_default?: boolean
+  }
+) {
+  return fetchCubiclesJson<CubiclesWorkspaceResponse>(`/workspaces/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function setCubiclesDefaultWorkspace(id: string) {
+  return fetchCubiclesJson<CubiclesWorkspaceResponse>(
+    `/workspaces/${encodeURIComponent(id)}/default`,
+    {
+      method: "POST",
+    }
+  )
+}
+
+export function deleteCubiclesWorkspace(id: string) {
+  return fetchCubiclesVoid(`/workspaces/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
 }
 
 export function fetchCubiclesProfileDetail(name: string) {
@@ -154,6 +206,34 @@ export function updateCubiclesMemoryDocument(identifier: string, content: string
 
 export function fetchCubiclesApis() {
   return fetchCubiclesJson<CubiclesApiRecord[]>("/apis")
+}
+
+export function fetchCubiclesSlashCommands() {
+  return fetchCubiclesJson<CubiclesSlashListResponse>("/slash")
+}
+
+export function executeCubiclesSlashCommand(body: CubiclesSlashExecutionRequest) {
+  return fetchCubiclesJson<CubiclesSlashExecutionResponse>("/slash", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function deleteCubiclesSession(
+  sessionId: string,
+  body?: {
+    active_session_id?: string | null
+    profile_name?: string | null
+  }
+) {
+  return executeCubiclesSlashCommand({
+    command: `/sessions delete ${sessionId}`,
+    session_id: body?.active_session_id ?? undefined,
+    profile_name: body?.profile_name ?? undefined,
+  })
 }
 
 export function fetchCubiclesApiGroups() {
@@ -250,7 +330,34 @@ export function fetchCubiclesSessionHistory(sessionId: string) {
   )
 }
 
-export function createCubiclesSession(name?: string) {
+export async function fetchCubiclesPendingApproval(sessionId: string) {
+  const response = await fetch(`${getCubiclesApiBase()}/chat/pending/${encodeURIComponent(sessionId)}`)
+
+  if (response.status === 404) {
+    return null
+  }
+
+  if (!response.ok) {
+    throw new Error(`Cubicles request failed: ${response.status} ${response.statusText}`)
+  }
+
+  const payload = (await response.json()) as { pending: CubiclesPendingApproval }
+  return payload.pending
+}
+
+export function stopCubiclesChat(sessionId: string) {
+  return fetchCubiclesJson<{ status: string }>("/chat/stop", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: sessionId,
+    }),
+  })
+}
+
+export function createCubiclesSession(name?: string, workspaceId?: string | null) {
   return fetchCubiclesJson<CubiclesSessionResponse>("/sessions", {
     method: "POST",
     headers: {
@@ -258,6 +365,7 @@ export function createCubiclesSession(name?: string) {
     },
     body: JSON.stringify({
       name: name ?? null,
+      workspace_id: workspaceId ?? null,
     }),
   })
 }
@@ -265,6 +373,19 @@ export function createCubiclesSession(name?: string) {
 export function activateCubiclesSession(sessionId: string) {
   return fetchCubiclesJson<CubiclesSessionResponse>(`/sessions/${sessionId}/activate`, {
     method: "POST",
+  })
+}
+
+export function updateCubiclesSession(
+  sessionId: string,
+  body: { name?: string | null; workspace_id?: string | null }
+) {
+  return fetchCubiclesJson<CubiclesSessionResponse>(`/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   })
 }
 

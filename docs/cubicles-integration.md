@@ -39,13 +39,15 @@ It currently wraps:
 - sessions
 - session history
 - chat streaming
+- slash listing and execution
+- approvals and stop/interrupt actions
 
 The Cubicles server also exposes slash-command APIs:
 
 - `GET /api/slash` to list commands
 - `POST /api/slash` to execute a command
 
-Juice does not fully surface those yet, but they are part of the active roadmap because Cubicles already has the shared slash-command dispatcher behind them.
+Juice uses those slash endpoints directly for composer slash execution and for session deletion through the shared `/sessions delete <id>` command path, instead of maintaining a separate frontend-only delete behavior.
 
 ## Backend supervision
 
@@ -75,7 +77,10 @@ http://127.0.0.1:7799
 - fetch session history
 - create sessions
 - activate sessions
+- delete sessions through the shared slash dispatcher
 - stream new chat replies
+- execute slash commands
+- restore pending approvals
 
 Profile selection currently works like this:
 
@@ -86,12 +91,9 @@ Profile selection currently works like this:
 
 Based on the Cubicles docs, the backend already supports several surfaces the desktop app has not fully implemented yet:
 
-- slash-command listing and execution
-- slash-command transcript echoing
-- slash autocomplete and argument suggestions
-- approval / reject / redirect flows
 - structured outputs for sessions, profiles, skills, memory, tools, and apis
 - settings/runtime metadata surfaces
+- stronger delete/error recovery feedback in the desktop shell
 
 These are tracked in [`../todo.md`](../todo.md).
 
