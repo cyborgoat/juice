@@ -1,13 +1,13 @@
-import { BrowserRouter, Route, Routes } from "react-router-dom"
+import { HashRouter, Route, Routes } from "react-router-dom"
 
 import { DesktopAssistant } from "@/features/assistant/desktop-assistant"
 
 export function AppRouter() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<DesktopAssistant />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   )
 }

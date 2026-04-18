@@ -11,6 +11,7 @@ This file tracks the major product work still pending for the desktop app.
 
 ## High priority
 
+- Investigate the remaining packaged-app blank screen after `tauri build` (capture bundled-app logs, inspect packaged runtime errors, and verify the final asset/runtime bootstrap path)
 - Improve slash-command result presentation for richer structured outputs
 - Harden approval recovery when reopening older sessions with persisted pending tools
 
