@@ -223,10 +223,12 @@ export type CubiclesChatEvent =
   | { type: "tool_preview"; content: string }
   | { type: "tool_call"; tool: Record<string, unknown>; detail: string; step: number; maxSteps: number }
   | { type: "tool_running"; name: string; detail: string }
-  | { type: "tool_result"; name: string; returncode: number; output: string }
+  | { type: "tool_result"; name: string; returncode: number; output: string; durationMs?: number }
   | { type: "awaiting_approval"; approvalId: string; sessionId: string; pendingTool: Record<string, unknown> }
   | { type: "approval_applied"; approvalId: string; approved: boolean }
   | { type: "tool_skipped"; name: string }
   | { type: "usage"; usage: Record<string, number> }
+  | { type: "compressing" }
+  | { type: "turn_summary"; steps: number; toolsCalled: number; tokensUsed: number; errorCount: number }
   | { type: "done"; sessionId: string; workspacePath: string }
   | { type: "error"; message: string; hint?: string }

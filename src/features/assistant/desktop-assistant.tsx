@@ -654,6 +654,39 @@ export function DesktopAssistant() {
       case "usage": {
         return
       }
+      case "compressing": {
+        const entryId = `compressing-${sessionId}-${streamId}`
+        setTranscripts((prev) =>
+          upsertEntry(prev, sessionId, entryId, () => ({
+            id: entryId,
+            type: "system",
+            label: "Context",
+            timestamp: "Now",
+            content: "Compressing context to stay within token budget…",
+          }))
+        )
+        return
+      }
+      case "turn_summary": {
+        // Only surface if non-trivial
+        if (event.toolsCalled === 0 && event.errorCount === 0) return
+        const parts: string[] = []
+        if (event.steps > 0) parts.push(`${event.steps} step${event.steps !== 1 ? "s" : ""}`)
+        if (event.toolsCalled > 0) parts.push(`${event.toolsCalled} tool${event.toolsCalled !== 1 ? "s" : ""}`)
+        if (event.tokensUsed > 0) parts.push(`${event.tokensUsed.toLocaleString()} tokens`)
+        if (event.errorCount > 0) parts.push(`${event.errorCount} error${event.errorCount !== 1 ? "s" : ""}`)
+        const entryId = `turn-summary-${sessionId}-${streamId}`
+        setTranscripts((prev) =>
+          upsertEntry(prev, sessionId, entryId, () => ({
+            id: entryId,
+            type: "system",
+            label: "Turn",
+            timestamp: "Now",
+            content: parts.join(" · "),
+          }))
+        )
+        return
+      }
       case "error": {
         logger.error("Chat stream emitted error", {
           sessionId,
