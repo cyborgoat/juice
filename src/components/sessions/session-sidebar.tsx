@@ -10,7 +10,6 @@ import {
   SidebarHeader,
   SidebarInput,
   SidebarMenuAction,
-  SidebarMenuBadge,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -141,10 +140,6 @@ export function SessionSidebar({
                       {session.title}
                     </span>
                   </SidebarMenuButton>
-
-                  <SidebarMenuBadge className="right-8 top-1/2 -translate-y-1/2 rounded-full bg-background/75 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                    {session.messageCount}
-                  </SidebarMenuBadge>
 
                   {onDeleteSession ? (
                     <SidebarMenuAction
