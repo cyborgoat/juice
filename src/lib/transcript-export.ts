@@ -1,3 +1,5 @@
+import { writeTextFile } from "@tauri-apps/plugin-fs"
+import { downloadDir, join } from "@tauri-apps/api/path"
 import type { TranscriptEntry } from "@/lib/demo-data"
 
 export function transcriptToMarkdown(entries: TranscriptEntry[], sessionTitle?: string): string {
@@ -52,12 +54,10 @@ export function transcriptToMarkdown(entries: TranscriptEntry[], sessionTitle?: 
   return lines.join("\n")
 }
 
-export function downloadMarkdown(content: string, filename: string) {
-  const blob = new Blob([content], { type: "text/markdown;charset=utf-8" })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement("a")
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
+/** Saves content to the Downloads folder and returns the full file path. */
+export async function saveToDownloads(content: string, filename: string): Promise<string> {
+  const dir = await downloadDir()
+  const filePath = await join(dir, filename)
+  await writeTextFile(filePath, content)
+  return filePath
 }

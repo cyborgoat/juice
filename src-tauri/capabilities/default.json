@@ -50,6 +50,8 @@
       ]
     }
     ,
-    "shell:allow-kill"
+    "shell:allow-kill",
+    "fs:allow-write-text-file",
+    "fs:scope-download-recursive"
   ]
 }

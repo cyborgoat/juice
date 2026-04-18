@@ -32,7 +32,7 @@ import { SettingsScreen } from "@/features/settings/settings-screen"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { type SessionSummary, type TranscriptEntry } from "@/lib/demo-data"
 import { createLogger } from "@/lib/logger"
-import { transcriptToMarkdown, downloadMarkdown } from "@/lib/transcript-export"
+import { transcriptToMarkdown, saveToDownloads } from "@/lib/transcript-export"
 import { cn } from "@/lib/utils"
 import {
   appendEntry,
@@ -1052,8 +1052,14 @@ export function DesktopAssistant() {
         onSelect: () => {
           const md = transcriptToMarkdown(activeEntries, activeSession.title)
           const slug = activeSession.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 40)
-          downloadMarkdown(md, `${slug || "transcript"}.md`)
-          toast.success("Transcript exported")
+          const filename = `${slug || "transcript"}.md`
+          saveToDownloads(md, filename)
+            .then((path) => {
+              toast.success("Transcript saved", { description: path })
+            })
+            .catch(() => {
+              toast.error("Export failed", { description: "Could not write to Downloads folder." })
+            })
         },
       })
       actions.push({
@@ -1196,8 +1202,14 @@ export function DesktopAssistant() {
                   onClick={() => {
                     const md = transcriptToMarkdown(activeEntries, activeSession.title)
                     const slug = activeSession.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 40)
-                    downloadMarkdown(md, `${slug || "transcript"}.md`)
-                    toast.success("Transcript exported")
+                    const filename = `${slug || "transcript"}.md`
+                    saveToDownloads(md, filename)
+                      .then((path) => {
+                        toast.success("Transcript saved", { description: path })
+                      })
+                      .catch(() => {
+                        toast.error("Export failed", { description: "Could not write to Downloads folder." })
+                      })
                   }}
                   aria-label="Export transcript"
                 >
