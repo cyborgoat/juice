@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, MessageSquarePlus, PanelLeft, Settings2, Trash2, XCircle } from "lucide-react"
+import { Download, MessageSquarePlus, Moon, PanelLeft, Settings2, Sun, Trash2, XCircle } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { useTheme } from "@/hooks/use-theme"
 import { toast } from "sonner"
 
 import {
@@ -71,6 +72,7 @@ export function DesktopAssistant() {
     detail: "Starting Cubicles desktop integration...",
     pid: null,
   })
+  const { theme, toggleTheme } = useTheme()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [activeView, setActiveView] = useState<"chat" | "settings">("chat")
   const [isStreaming, setIsStreaming] = useState(false)
@@ -1066,9 +1068,9 @@ export function DesktopAssistant() {
   }, [activeSession, activeEntries])
 
   return (
-    <div className="dark h-screen overflow-hidden bg-background text-foreground">
+    <div className="h-screen overflow-hidden bg-background text-foreground">
       <CommandPalette actions={paletteActions} />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(168,85,247,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.12),transparent_26%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,oklch(0.64_0.19_42_/_0.12),transparent_32%),radial-gradient(circle_at_bottom_right,oklch(0.72_0.16_55_/_0.08),transparent_26%)]" />
 
       {deleteCandidateSession ? (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/55 px-4 backdrop-blur-sm">
@@ -1202,6 +1204,15 @@ export function DesktopAssistant() {
                   <Download className="size-4" />
                 </Button>
               )}
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 rounded-full"
+                onClick={toggleTheme}
+                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              >
+                {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              </Button>
             </div>
           </header>
 
