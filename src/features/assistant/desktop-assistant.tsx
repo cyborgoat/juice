@@ -1051,9 +1051,7 @@ export function DesktopAssistant() {
         icon: <Download className="size-4" />,
         onSelect: () => {
           const md = transcriptToMarkdown(activeEntries, activeSession.title)
-          const slug = activeSession.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 40)
-          const filename = `${slug || "transcript"}.md`
-          saveToDownloads(md, filename)
+          saveToDownloads(md, activeSession.title)
             .then((path) => {
               toast.success("Transcript saved", { description: path })
             })
@@ -1201,9 +1199,7 @@ export function DesktopAssistant() {
                   className="shrink-0 rounded-full"
                   onClick={() => {
                     const md = transcriptToMarkdown(activeEntries, activeSession.title)
-                    const slug = activeSession.title.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]/g, "").slice(0, 40)
-                    const filename = `${slug || "transcript"}.md`
-                    saveToDownloads(md, filename)
+                    saveToDownloads(md, activeSession.title)
                       .then((path) => {
                         toast.success("Transcript saved", { description: path })
                       })
