@@ -1,5 +1,6 @@
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { CodeBlock, InlineCode } from "@/components/chat/code-block"
 
 type ChatMarkdownProps = {
   content: string
@@ -94,18 +95,13 @@ const markdownComponents: Components = {
       !children.includes("\n")
 
     if (isInline) {
-      return (
-        <code className="rounded bg-background/80 px-1.5 py-0.5 font-mono text-[0.9em]">
-          {children}
-        </code>
-      )
+      return <InlineCode>{children}</InlineCode>
     }
 
-    return (
-      <pre className="mt-3 overflow-x-auto rounded-xl bg-background/90 px-3 py-2.5 text-sm leading-6">
-        <code className={className}>{children}</code>
-      </pre>
-    )
+    const language = className?.match(/language-(\S+)/)?.[1]
+    const text = typeof children === "string" ? children.replace(/\n$/, "") : String(children ?? "").replace(/\n$/, "")
+
+    return <CodeBlock language={language}>{text}</CodeBlock>
   },
 }
 

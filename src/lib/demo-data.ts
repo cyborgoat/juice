@@ -25,6 +25,8 @@ type ToolEntry = {
   output: string
   timestamp: string
   approvalId?: string
+  step?: number
+  maxSteps?: number
 }
 
 type ToolPreviewEntry = {

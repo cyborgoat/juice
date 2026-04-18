@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ChatMarkdown } from "@/components/chat/chat-markdown"
+import { CopyButton } from "@/components/chat/code-block"
 import { cn } from "@/lib/utils"
 import type { TranscriptEntry } from "@/lib/demo-data"
 
@@ -98,7 +99,7 @@ export function ChatTranscript({
                       "max-w-full px-0 py-0",
                       isUser
                         ? "w-fit min-w-[16rem] max-w-[min(85%,44rem)] rounded-[1.35rem] border border-primary/20 bg-primary px-3.5 py-2.5 text-primary-foreground shadow-sm"
-                        : "w-full text-foreground"
+                        : "group/msg w-full text-foreground"
                     )}
                   >
                     {isUser ? (
@@ -106,6 +107,9 @@ export function ChatTranscript({
                     ) : (
                       <div className="text-sm">
                         <ChatMarkdown content={entry.content} />
+                        <div className="mt-1 flex opacity-0 transition-opacity group-hover/msg:opacity-100">
+                          <CopyButton text={entry.content} />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -142,7 +146,7 @@ export function ChatTranscript({
                       "rounded-[1.35rem] border shadow-sm",
                       isCommand
                         ? "border-sky-500/20 bg-sky-500/10 px-3.5 py-2.5 font-mono text-sm text-foreground"
-                        : "border-border/70 bg-card/70 p-3.5"
+                        : "group/slash border-border/70 bg-card/70 p-3.5"
                     )}
                   >
                     {isCommand ? (
@@ -150,6 +154,9 @@ export function ChatTranscript({
                     ) : (
                       <div className="text-sm">
                         <ChatMarkdown content={entry.content} />
+                        <div className="mt-1 flex opacity-0 transition-opacity group-hover/slash:opacity-100">
+                          <CopyButton text={entry.content} />
+                        </div>
                       </div>
                     )}
                   </div>
@@ -167,14 +174,17 @@ export function ChatTranscript({
                 exit={{ opacity: 0, y: -12 }}
                 className="min-w-0 w-full rounded-[1.35rem] border border-dashed border-sky-500/40 bg-sky-500/5 p-3.5"
               >
-                <div className="flex items-center gap-2 text-[11px] text-sky-600 dark:text-sky-300">
-                  <Terminal className="size-3.5" />
-                  <span>Tool preview</span>
-                  <span className="text-muted-foreground">{entry.timestamp}</span>
-                </div>
-                <pre className="mt-2.5 overflow-x-auto whitespace-pre-wrap break-words rounded-2xl bg-background/80 px-3.5 py-2.5 font-mono text-sm leading-6 text-foreground">
-                  {entry.content}
-                </pre>
+                <details open>
+                  <summary className="flex cursor-pointer list-none items-center gap-2 text-[11px] text-sky-600 dark:text-sky-300">
+                    <Terminal className="size-3.5" />
+                    <span>Tool preview</span>
+                    <span className="text-muted-foreground">{entry.timestamp}</span>
+                    <CopyButton text={entry.content} />
+                  </summary>
+                  <pre className="mt-2.5 overflow-x-auto whitespace-pre-wrap break-words rounded-2xl bg-background/80 px-3.5 py-2.5 font-mono text-sm leading-6 text-foreground">
+                    {entry.content}
+                  </pre>
+                </details>
               </motion.div>
             )
           }
@@ -200,6 +210,11 @@ export function ChatTranscript({
                   >
                     {toolStatusLabel[entry.status]}
                   </Badge>
+                  {entry.step != null && entry.maxSteps != null && entry.maxSteps > 1 && (
+                    <span className="text-[11px] font-medium text-muted-foreground">
+                      Step {entry.step}/{entry.maxSteps}
+                    </span>
+                  )}
                   <span className="text-xs text-muted-foreground">{entry.timestamp}</span>
                 </div>
                 <div className="mt-2.5 flex items-start justify-between gap-4">
@@ -215,9 +230,24 @@ export function ChatTranscript({
                     <ShieldCheck className="size-4 text-primary" />
                   )}
                 </div>
-                <div className="mt-3 rounded-2xl bg-background/80 px-3.5 py-2.5 text-sm leading-6 text-muted-foreground">
-                  <ChatMarkdown content={entry.output} />
-                </div>
+                {entry.status === "completed" ? (
+                  <details className="group/toolout mt-3 rounded-2xl bg-background/80 px-3.5 py-2.5 text-sm leading-6 text-muted-foreground">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground/60">
+                      Output
+                      <CopyButton text={entry.output} />
+                    </summary>
+                    <div className="mt-2">
+                      <ChatMarkdown content={entry.output} />
+                    </div>
+                  </details>
+                ) : (
+                  <div className="group/toolout mt-3 rounded-2xl bg-background/80 px-3.5 py-2.5 text-sm leading-6 text-muted-foreground">
+                    <ChatMarkdown content={entry.output} />
+                    <div className="mt-1 flex opacity-0 transition-opacity group-hover/toolout:opacity-100">
+                      <CopyButton text={entry.output} />
+                    </div>
+                  </div>
+                )}
 
                 {entry.status === "awaiting-approval" &&
                 entry.approvalId &&

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { PanelLeft } from "lucide-react"
+import { MessageSquarePlus, PanelLeft, XCircle } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { toast } from "sonner"
 
@@ -818,6 +818,8 @@ export function DesktopAssistant() {
                         : "Running...",
               timestamp: "Now",
               approvalId: event.type === "awaiting_approval" ? event.approvalId : undefined,
+              step: event.type === "tool_call" ? event.step : undefined,
+              maxSteps: event.type === "tool_call" ? event.maxSteps : undefined,
             })
           )
         )
@@ -1344,24 +1346,40 @@ export function DesktopAssistant() {
           {activeView === "settings" ? (
             <SettingsScreen backendState={backendState} />
           ) : showEmptyChatState ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 text-center">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
               {backendState.mode === "starting" ? (
                 <>
-                  <div className="size-8 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
-                  <p className="text-sm text-muted-foreground">Starting Cubicles backend…</p>
+                  <div className="size-10 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground/80">Starting backend…</p>
+                    <p className="text-xs text-muted-foreground">Cubicles is warming up. This may take a moment.</p>
+                  </div>
                 </>
               ) : backendState.mode === "error" ? (
                 <>
-                  <div className="size-3 rounded-full bg-red-500 shadow-[0_0_0_6px_rgba(239,68,68,0.15)]" />
-                  <div className="max-w-md space-y-1">
+                  <div className="flex size-12 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10">
+                    <XCircle className="size-6 text-red-400" />
+                  </div>
+                  <div className="max-w-sm space-y-1.5">
                     <p className="text-sm font-medium text-foreground">Backend connection failed</p>
                     <p className="text-xs leading-relaxed text-muted-foreground">{backendState.detail}</p>
+                    <p className="text-xs text-muted-foreground/70">
+                      Check Settings → Overview for diagnostics.
+                    </p>
                   </div>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  No sessions yet. Create one from the sidebar to get started.
-                </p>
+                <>
+                  <div className="flex size-12 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
+                    <MessageSquarePlus className="size-6 text-primary/70" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-foreground/80">No active session</p>
+                    <p className="text-xs text-muted-foreground">
+                      Create a new session from the sidebar to get started.
+                    </p>
+                  </div>
+                </>
               )}
             </div>
           ) : (

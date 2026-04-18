@@ -168,9 +168,21 @@ export function SessionSidebar({
            })}
 
           {!filteredSessions.length ? (
-            <div className="rounded-xl border border-dashed border-sidebar-border bg-background/40 p-4 text-sm leading-5 text-muted-foreground">
-              No sessions match <span className="font-medium text-foreground">“{query}”</span>.
-            </div>
+            query ? (
+              <div className="rounded-xl border border-dashed border-sidebar-border bg-background/40 p-4 text-sm leading-5 text-muted-foreground">
+                No sessions match <span className="font-medium text-foreground">“{query}”</span>.
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-sidebar-border bg-background/40 px-4 py-8 text-center">
+                <MessageSquarePlus className="size-8 text-muted-foreground/40" />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground/80">No sessions yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Create a new session to start chatting.
+                  </p>
+                </div>
+              </div>
+            )
           ) : null}
         </SidebarMenu>
       </SidebarContent>
