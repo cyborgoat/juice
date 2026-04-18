@@ -1,8 +1,9 @@
 import { motion } from "motion/react"
-import { MessageSquarePlus, Search, Settings2, Trash2, X } from "lucide-react"
+import { ChevronRight, MessageSquarePlus, Search, Settings2, Trash2, X } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
 import type { SessionSummary } from "@/lib/demo-data"
+import type { SettingsTab } from "@/features/settings/settings-screen"
 
 type SessionSidebarProps = {
   sessions: SessionSummary[]
@@ -28,6 +30,7 @@ type SessionSidebarProps = {
   onOpenSettings: () => void
   onDeleteSession?: (sessionId: string) => void
   isMutatingSession?: boolean
+  onOpenAdvancedTab?: (tab: SettingsTab) => void
 }
 
 export function SessionSidebar({
@@ -39,6 +42,7 @@ export function SessionSidebar({
   onOpenSettings,
   onDeleteSession,
   isMutatingSession = false,
+  onOpenAdvancedTab,
 }: SessionSidebarProps) {
   const { isMobile, setOpen, setOpenMobile } = useSidebar()
   const [query, setQuery] = useState("")
@@ -193,8 +197,47 @@ export function SessionSidebar({
               <span>Settings</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
+
+          {onOpenAdvancedTab ? (
+            <SidebarMenuItem>
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <SidebarMenuButton
+                    type="button"
+                    className="h-7 rounded-xl text-muted-foreground [&[data-state=open]>svg:last-child]:rotate-90"
+                  >
+                    <span className="text-xs">Advanced</span>
+                    <ChevronRight className="ml-auto size-3 transition-transform" />
+                  </SidebarMenuButton>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <SidebarMenu className="ml-2 mt-0.5 gap-0.5 border-l border-sidebar-border/50 pl-2">
+                    {ADVANCED_TABS.map(({ id, label }) => (
+                      <SidebarMenuItem key={id}>
+                        <SidebarMenuButton
+                          type="button"
+                          onClick={() => onOpenAdvancedTab(id)}
+                          className="h-7 rounded-lg text-xs text-muted-foreground hover:text-foreground"
+                        >
+                          {label}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </CollapsibleContent>
+              </Collapsible>
+            </SidebarMenuItem>
+          ) : null}
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   )
 }
+
+const ADVANCED_TABS: Array<{ id: SettingsTab; label: string }> = [
+  { id: "memory", label: "Memory" },
+  { id: "apis", label: "APIs" },
+  { id: "extensions", label: "Extensions" },
+  { id: "skills", label: "Skills" },
+  { id: "harness", label: "Harness" },
+]

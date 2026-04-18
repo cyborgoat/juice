@@ -28,7 +28,7 @@ import { ChatComposer } from "@/components/chat/chat-composer"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
 import { SessionSidebar } from "@/components/sessions/session-sidebar"
 import { Button } from "@/components/ui/button"
-import { SettingsScreen } from "@/features/settings/settings-screen"
+import { SettingsScreen, type SettingsTab } from "@/features/settings/settings-screen"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { type SessionSummary, type TranscriptEntry } from "@/lib/demo-data"
 import { createLogger } from "@/lib/logger"
@@ -75,6 +75,7 @@ export function DesktopAssistant() {
   const { theme, toggleTheme } = useTheme()
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [activeView, setActiveView] = useState<"chat" | "settings">("chat")
+  const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>("overview")
   const [isStreaming, setIsStreaming] = useState(false)
   const [isMutatingSession, setIsMutatingSession] = useState(false)
   const [deleteCandidateSessionId, setDeleteCandidateSessionId] = useState<string | null>(null)
@@ -1157,6 +1158,10 @@ export function DesktopAssistant() {
               setDeleteCandidateSessionId(sessionId)
             }}
             onOpenSettings={() => setActiveView("settings")}
+            onOpenAdvancedTab={(tab) => {
+              setActiveView("settings")
+              setActiveSettingsTab(tab)
+            }}
           />
 
           <SidebarInset className="flex min-w-0 flex-col overflow-hidden">
@@ -1256,7 +1261,11 @@ export function DesktopAssistant() {
           </header>
 
           {activeView === "settings" ? (
-            <SettingsScreen backendState={backendState} />
+            <SettingsScreen
+              backendState={backendState}
+              activeTab={activeSettingsTab}
+              onActiveTabChange={setActiveSettingsTab}
+            />
           ) : showEmptyChatState ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
               {backendState.mode === "starting" ? (

@@ -19,18 +19,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApisTab } from "./apis-tab"
 import { OverviewTab } from "./overview-tab"
 import { ProfilesTab } from "./profiles-tab"
-import { ExtensionsTab, MemoryTab, SkillsTab } from "./tools-tab"
+import { ExtensionsTab, HarnessTab, MemoryTab, SkillsTab } from "./tools-tab"
 import { WorkspacesTab } from "./workspaces-tab"
+
+export type SettingsTab = "overview" | "profiles" | "workspaces" | "memory" | "apis" | "extensions" | "skills" | "harness"
 
 type SettingsScreenProps = {
   backendState: CubiclesBackendState
+  activeTab?: SettingsTab
+  onActiveTabChange?: (tab: SettingsTab) => void
 }
 
-type SettingsTab = "overview" | "profiles" | "workspaces" | "memory" | "apis" | "extensions" | "skills"
-
-export function SettingsScreen({ backendState }: SettingsScreenProps) {
+export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) {
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState<SettingsTab>("overview")
+  const [internalTab, setInternalTab] = useState<SettingsTab>(props.activeTab ?? "overview")
+  const activeTab = props.activeTab ?? internalTab
+  function handleTabChange(value: string) {
+    const tab = value as SettingsTab
+    setInternalTab(tab)
+    props.onActiveTabChange?.(tab)
+  }
   const [selectedProfileName, setSelectedProfileName] = useState("")
   const [selectedApiName, setSelectedApiName] = useState("")
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("")
@@ -217,6 +225,11 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
       label: "Skills",
       description: `${skillsQuery.data?.length ?? 0} available`,
     },
+    {
+      id: "harness",
+      label: "Harness",
+      description: "Agent hyperparameters",
+    },
   ] satisfies Array<{
     id: SettingsTab
     label: string
@@ -237,21 +250,26 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
     <div className="flex min-h-0 flex-1 flex-col">
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as SettingsTab)}
+        onValueChange={handleTabChange}
         className="flex min-h-0 flex-1 flex-col"
       >
         {/* Sticky tab nav */}
         <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-3 py-1.5 backdrop-blur-sm md:px-4">
           <div className="mx-auto max-w-4xl">
             <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto bg-transparent p-0">
-              {tabs.map((tab) => (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className="h-7 min-w-fit shrink-0 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-active:bg-primary/10 data-active:text-foreground"
-                >
-                  {tab.label}
-                </TabsTrigger>
+              {tabs.map((tab, i) => (
+                <>
+                  {i === 3 && (
+                    <span key="sep" className="mx-1 h-4 w-px self-center bg-border/60" aria-hidden />
+                  )}
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="h-7 min-w-fit shrink-0 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-active:bg-primary/10 data-active:text-foreground"
+                  >
+                    {tab.label}
+                  </TabsTrigger>
+                </>
               ))}
             </TabsList>
           </div>
@@ -331,6 +349,10 @@ export function SettingsScreen({ backendState }: SettingsScreenProps) {
                 onRefresh={refreshSettingsData}
                 showFeedback={showFeedback}
               />
+            </TabsContent>
+
+            <TabsContent value="harness">
+              <HarnessTab />
             </TabsContent>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { CornerDownLeft, Paperclip, Sparkles, Terminal } from "lucide-react"
+import { CornerDownLeft, Paperclip, Terminal } from "lucide-react"
 import { type KeyboardEvent, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -109,18 +109,6 @@ export function ChatComposer({
 
   return (
     <div className="rounded-[1.35rem] border border-border/70 bg-card/85 p-3 shadow-2xl shadow-black/5 backdrop-blur">
-      <div className="mb-1.5 flex items-center justify-between text-[10px] text-muted-foreground/70">
-        <span className="inline-flex items-center gap-2">
-          <Sparkles className="size-3.5" />
-          Chat composer
-        </span>
-        <span>
-          {slashSuggestions.length > 0
-            ? "Arrow keys + Tab/Enter to complete"
-            : "Press Ctrl/Cmd + Enter to send"}
-        </span>
-      </div>
-
       <div className="relative">
         <Textarea
           value={draft}

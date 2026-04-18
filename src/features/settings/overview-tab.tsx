@@ -52,22 +52,6 @@ export function OverviewTab({ settingsData, providerHints, backendState }: Overv
       )}
 
       <BackendDiagnostics backendState={backendState} />
-      <HarnessInfo />
-    </div>
-  )
-}
-
-function HarnessInfo() {
-  return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium text-foreground">Agent Harness</h3>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Tunable hyperparameters (token budgets, step limits, timeouts) live in{" "}
-        <code className="rounded bg-muted px-1 py-0.5 text-xs font-mono">
-          ~/.cubicles/config/harness.json
-        </code>
-        . Edit that file and restart the backend to apply changes.
-      </p>
     </div>
   )
 }

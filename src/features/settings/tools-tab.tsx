@@ -254,3 +254,47 @@ function ToolToggleCard({
     </Collapsible>
   )
 }
+
+export function HarnessTab() {
+  return (
+    <div className="space-y-3">
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold">Agent Harness</h2>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          Tunable hyperparameters live in{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+            ~/.cubicles/config/harness.json
+          </code>
+          . Edit the file and restart the backend to apply.
+        </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        {HARNESS_FIELDS.map((field) => (
+          <div key={field.key} className="rounded-lg border border-border/50 bg-background/40 px-3 py-2">
+            <p className="font-mono text-xs font-medium text-foreground">{field.key}</p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">{field.description}</p>
+            {field.default !== undefined && (
+              <p className="mt-0.5 font-mono text-[11px] text-primary/80">default: {String(field.default)}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+const HARNESS_FIELDS: Array<{ key: string; description: string; default?: number | string }> = [
+  { key: "max_steps", description: "Max agent loop iterations per turn", default: 15 },
+  { key: "min_prompt_budget", description: "Absolute minimum prompt token budget", default: 16384 },
+  { key: "default_context_window", description: "Fallback context window when profile omits it", default: 32768 },
+  { key: "default_max_tokens", description: "Fallback max output tokens", default: 4096 },
+  { key: "compression_threshold", description: "Context fill % that triggers auto-compression (0–1)", default: 0.85 },
+  { key: "min_reserve_tokens", description: "Minimum tokens reserved for output & framing", default: 512 },
+  { key: "reserve_multiplier", description: "Multiplier applied to max_output_tokens for reserve", default: 1.0 },
+  { key: "stream_timeout_ms", description: "Stream inactivity timeout (ms)", default: 60000 },
+  { key: "max_tool_output_tokens", description: "Max tokens kept per tool result in context", default: 8192 },
+  { key: "max_read_file_bytes", description: "Max bytes read per file (0 = unlimited)", default: 0 },
+  { key: "max_output_bytes", description: "Max combined stdout+stderr bytes per subprocess", default: 65536 },
+  { key: "message_overhead_tokens", description: "Per-message overhead for role/delimiters", default: 8 },
+]
