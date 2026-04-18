@@ -40,7 +40,6 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
     props.onActiveTabChange?.(tab)
   }
   const [selectedProfileName, setSelectedProfileName] = useState("")
-  const [selectedApiName, setSelectedApiName] = useState("")
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("")
   const isReady = backendState.mode === "ready"
 
@@ -150,26 +149,6 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
     queryFn: () => fetchCubiclesToolCatalog(toolingProfileName),
     enabled: isReady,
   })
-
-  const effectiveSelectedApiName = useMemo(() => {
-    if (!apisQuery.data?.length) {
-      return ""
-    }
-
-    if (selectedApiName) {
-      const match = apisQuery.data.find((api) => api.name === selectedApiName)
-      if (match) {
-        return match.name
-      }
-    }
-
-    return apisQuery.data[0]?.name ?? ""
-  }, [apisQuery.data, selectedApiName])
-
-  const selectedApi = useMemo(
-    () => apisQuery.data?.find((api) => api.name === effectiveSelectedApiName) ?? null,
-    [apisQuery.data, effectiveSelectedApiName]
-  )
 
   async function refreshSettingsData() {
     await Promise.all([
@@ -320,10 +299,7 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
               <ApisTab
                 apis={apisQuery.data}
                 apiGroups={apiGroupsQuery.data}
-                effectiveSelectedApiName={effectiveSelectedApiName}
-                selectedApi={selectedApi}
                 toolingProfileName={toolingProfileName}
-                onSelectApi={setSelectedApiName}
                 onRefresh={refreshSettingsData}
                 showFeedback={showFeedback}
               />
