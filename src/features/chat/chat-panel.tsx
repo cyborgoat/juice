@@ -23,7 +23,7 @@ import type {
   CubiclesChatEvent,
   CubiclesChatStreamRequest,
 } from "@/lib/cubicles-api/types"
-import { type CubiclesBackendState, ensureCubiclesBackend } from "@/lib/tauri/cubicles-backend"
+import { type CubiclesBackendState, ensureCubiclesBackend, getCubiclesApiBase } from "@/lib/tauri/cubicles-backend"
 import { CommandPalette, type CommandPaletteAction } from "@/components/command-palette"
 import { ChatComposer } from "@/components/chat/chat-composer"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
@@ -71,7 +71,7 @@ export function ChatPanel() {
   const [transcripts, setTranscripts] = useState<Record<string, TranscriptEntry[]>>({})
   const [backendState, setBackendState] = useState<CubiclesBackendState>({
     mode: "starting",
-    apiBase: "http://127.0.0.1:7799/api",
+    apiBase: getCubiclesApiBase(),
     detail: "Starting Cubicles desktop integration...",
     pid: null,
   })

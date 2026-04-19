@@ -23,10 +23,10 @@ export type CubiclesBackendState =
       logs: string[]
     }
 
-const CUBICLES_HOST = "127.0.0.1"
-const CUBICLES_PORT = 7799
-const CUBICLES_ROOT = "/Users/goatcheese/Documents/repositories/cubicles-ts"
-const JUICE_ROOT = "/Users/goatcheese/Documents/repositories/juice"
+const CUBICLES_HOST = import.meta.env.VITE_CUBICLES_HOST || "127.0.0.1"
+const CUBICLES_PORT = Number(import.meta.env.VITE_CUBICLES_PORT) || 7799
+const CUBICLES_ROOT = import.meta.env.VITE_CUBICLES_ROOT
+const JUICE_ROOT = import.meta.env.VITE_JUICE_ROOT
 const API_BASE = `http://${CUBICLES_HOST}:${CUBICLES_PORT}/api`
 const HEALTH_URL = `http://${CUBICLES_HOST}:${CUBICLES_PORT}/health`
 const logger = createLogger("cubicles-backend")
