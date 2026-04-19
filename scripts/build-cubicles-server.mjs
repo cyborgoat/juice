@@ -2,6 +2,9 @@ import { execFileSync } from "node:child_process"
 import { existsSync } from "node:fs"
 import { resolve } from "node:path"
 
+// Load .env from project root (Node 22+ built-in); skip silently if missing.
+try { process.loadEnvFile(resolve(import.meta.dirname, "..", ".env")) } catch { /* no .env — rely on shell env */ }
+
 const developmentCubiclesRoot = process.env.JUICE_CUBICLES_ROOT
 const bundledCubiclesRoot = process.env.JUICE_BUNDLED_CUBICLES_ROOT
 

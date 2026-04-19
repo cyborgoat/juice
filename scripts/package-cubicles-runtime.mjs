@@ -5,12 +5,19 @@ import { fileURLToPath } from "node:url"
 
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const juiceRoot = resolve(scriptDir, "..")
+
+// Load .env from project root (Node 22+ built-in); skip silently if missing.
+try { process.loadEnvFile(resolve(juiceRoot, ".env")) } catch { /* no .env — rely on shell env */ }
+
 const resourcesRoot = resolve(juiceRoot, "src-tauri/resources")
 const packagedRuntimeRoot = resolve(resourcesRoot, "cubicles-runtime")
 const packagedScriptsRoot = resolve(resourcesRoot, "juice-scripts")
 const vendorRoot = resolve(packagedRuntimeRoot, "vendor")
-const cubiclesRoot =
-  process.env.JUICE_CUBICLES_ROOT ?? "/Users/goatcheese/Documents/repositories/cubicles-ts"
+const cubiclesRoot = process.env.JUICE_CUBICLES_ROOT
+
+if (!cubiclesRoot) {
+  throw new Error("JUICE_CUBICLES_ROOT is required. Set it in .env or as a shell environment variable.")
+}
 
 if (!existsSync(resolve(cubiclesRoot, "package.json"))) {
   throw new Error(`Cubicles workspace not found at ${cubiclesRoot}`)
