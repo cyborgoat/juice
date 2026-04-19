@@ -213,6 +213,25 @@ export function getSlashSuggestions({
         )
       }
       return []
+    case "/extensions":
+      if (currentArgIndex === 0) {
+        return staticSuggestions(
+          [
+            { label: "list", description: "List installed extensions" },
+            { label: "register", description: "Register an extension from file/dir" },
+            { label: "delete", description: "Remove an extension" },
+            { label: "enable", description: "Enable a disabled extension" },
+            { label: "disable", description: "Disable an extension" },
+            { label: "generate", description: "Generate an extension via LLM" },
+          ],
+          currentArg,
+          (label) => `${command} ${label} `
+        )
+      }
+      return []
+    case "/new":
+    case "/workspace":
+      return []
     default:
       return []
   }
