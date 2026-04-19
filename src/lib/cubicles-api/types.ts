@@ -62,6 +62,19 @@ export type CubiclesSessionResponse = {
   workspace_path: string
   message_count: number
   updated_at: string
+  session_round: number
+  context_used_tokens: number
+  context_window_tokens: number
+  context_usage_percent: number
+  compression_status: string
+  last_compression_mode: string
+  compressed_at: string | null
+}
+
+export type ToolReference = {
+  name: string
+  description: string
+  kind: string
 }
 
 export type CubiclesSessionHistoryMessage = {

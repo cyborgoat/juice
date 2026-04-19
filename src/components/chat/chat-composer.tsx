@@ -1,9 +1,9 @@
-import { CornerDownLeft, Paperclip, Terminal } from "lucide-react"
+import { CornerDownLeft, Hash, Paperclip, Terminal } from "lucide-react"
 import { type KeyboardEvent, useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import type { CubiclesSlashCommand } from "@/lib/cubicles-api/types"
+import type { CubiclesSlashCommand, ToolReference } from "@/lib/cubicles-api/types"
 import { cn } from "@/lib/utils"
 import { getSlashSuggestions } from "@/lib/slash-autocomplete"
 
@@ -18,6 +18,7 @@ type ChatComposerProps = {
     id: string
     title: string
   }>
+  toolReferences?: ToolReference[]
 }
 
 export function ChatComposer({
@@ -28,6 +29,7 @@ export function ChatComposer({
   slashCommands = [],
   profileNames = [],
   sessions = [],
+  toolReferences = [],
 }: ChatComposerProps) {
   const [draft, setDraft] = useState("")
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
@@ -43,6 +45,34 @@ export function ChatComposer({
     [draft, profileNames, sessions, slashCommands]
   )
 
+  // Extract the current @ prefix being typed (e.g. "@my" → "my")
+  const atPrefix = useMemo((): string | null => {
+    const idx = draft.lastIndexOf("@")
+    if (idx < 0) return null
+    if (idx > 0 && !/\s/.test(draft[idx - 1]!)) return null
+    const partial = draft.slice(idx + 1)
+    if (/\s/.test(partial)) return null
+    return partial
+  }, [draft])
+
+  const atSuggestions = useMemo(() => {
+    if (atPrefix === null || toolReferences.length === 0) return []
+    const prefix = atPrefix.toLowerCase()
+    const atIdx = draft.lastIndexOf("@")
+    const beforeAt = draft.slice(0, atIdx)
+    return toolReferences
+      .filter((ref) => ref.name.toLowerCase().startsWith(prefix))
+      .slice(0, 8)
+      .map((ref) => ({
+        label: `@${ref.name}`,
+        description: `[${ref.kind}] ${ref.description}`,
+        nextValue: `${beforeAt}@${ref.name} `,
+        isAt: true,
+      }))
+  }, [atPrefix, toolReferences, draft])
+
+  const activeSuggestions = atSuggestions.length > 0 ? atSuggestions : slashSuggestions
+
   function submit() {
     const trimmedDraft = draft.trim()
     if (!trimmedDraft || disabled) {
@@ -55,7 +85,7 @@ export function ChatComposer({
   }
 
   function applySuggestion(index: number) {
-    const suggestion = slashSuggestions[index]
+    const suggestion = activeSuggestions[index]
     if (!suggestion) {
       return
     }
@@ -70,14 +100,14 @@ export function ChatComposer({
       return
     }
 
-    if (!slashSuggestions.length) {
+    if (!activeSuggestions.length) {
       return
     }
 
     if (event.key === "ArrowDown") {
       event.preventDefault()
       setSelectedSuggestionIndex((currentIndex) =>
-        currentIndex >= slashSuggestions.length - 1 ? 0 : currentIndex + 1
+        currentIndex >= activeSuggestions.length - 1 ? 0 : currentIndex + 1
       )
       return
     }
@@ -85,7 +115,7 @@ export function ChatComposer({
     if (event.key === "ArrowUp") {
       event.preventDefault()
       setSelectedSuggestionIndex((currentIndex) =>
-        currentIndex <= 0 ? slashSuggestions.length - 1 : currentIndex - 1
+        currentIndex <= 0 ? activeSuggestions.length - 1 : currentIndex - 1
       )
       return
     }
@@ -106,6 +136,7 @@ export function ChatComposer({
   }
 
   const isSlashDraft = draft.trim().startsWith("/")
+  const sendLabel = isSlashDraft ? "Run command" : "Send"
 
   return (
     <div className="rounded-[1.35rem] border border-border/70 bg-card/85 p-3 shadow-2xl shadow-black/5 backdrop-blur">
@@ -122,12 +153,12 @@ export function ChatComposer({
           className="min-h-20 max-h-40 resize-none rounded-[1.15rem] border-border/70 bg-background/70 px-3.5 py-2.5 text-sm"
         />
 
-        {slashSuggestions.length > 0 ? (
+        {activeSuggestions.length > 0 ? (
           <div className="absolute right-0 bottom-full left-0 z-10 mb-1.5 rounded-xl border border-border/80 bg-background/98 py-1 shadow-xl backdrop-blur">
             <div className="px-2.5 pb-0.5 pt-1 text-[10px] uppercase tracking-widest text-muted-foreground/60">
-              Suggestions
+              {atSuggestions.length > 0 ? "References" : "Suggestions"}
             </div>
-            {slashSuggestions.slice(0, 6).map((suggestion, index) => (
+            {activeSuggestions.slice(0, 6).map((suggestion, index) => (
               <button
                 key={`${suggestion.label}-${index}`}
                 type="button"
@@ -143,7 +174,11 @@ export function ChatComposer({
                 )}
               >
                 <span className="inline-flex min-w-0 items-center gap-1.5">
-                  <Terminal className="size-3 shrink-0 text-muted-foreground" />
+                  {"isAt" in suggestion ? (
+                    <Hash className="size-3 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <Terminal className="size-3 shrink-0 text-muted-foreground" />
+                  )}
                   <span className="truncate font-medium">{suggestion.label}</span>
                 </span>
                 {suggestion.description ? (
@@ -173,7 +208,7 @@ export function ChatComposer({
           onClick={isStreaming ? onStop : submit}
           disabled={disabled || (isStreaming && !onStop)}
         >
-          {isStreaming ? "Stop" : isSlashDraft ? "Run command" : "Send"}
+          {isStreaming ? "Stop" : sendLabel}
           <CornerDownLeft className="size-4" />
         </Button>
       </div>

@@ -201,6 +201,18 @@ export function getSlashSuggestions({
         )
       }
       return []
+    case "/compact":
+      if (currentArgIndex === 0) {
+        return staticSuggestions(
+          [
+            { label: "soft", description: "Fast drop of oldest messages" },
+            { label: "hard", description: "LLM-powered summary snapshot" },
+          ],
+          currentArg,
+          (label) => `${command} ${label}`
+        )
+      }
+      return []
     default:
       return []
   }

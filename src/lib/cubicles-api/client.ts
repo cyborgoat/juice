@@ -21,6 +21,7 @@ import type {
   CubiclesSettingsResponse,
   CubiclesToolCatalogResponse,
   CubiclesWorkspaceResponse,
+  ToolReference,
 } from "@/lib/cubicles-api/types"
 import { getCubiclesApiBase } from "@/lib/tauri/cubicles-backend"
 
@@ -322,6 +323,10 @@ export function setCubiclesExtensionEnabled(name: string, enabled: boolean) {
       method: "POST",
     }
   )
+}
+
+export function fetchCubiclesToolReferences() {
+  return fetchCubiclesJson<ToolReference[]>("/tools/references")
 }
 
 export function fetchCubiclesSessionHistory(sessionId: string) {

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Download, MessageSquarePlus, Moon, PanelLeft, Settings2, Sun, Trash2, XCircle } from "lucide-react"
+import { BarChart2, Clipboard, MessageSquarePlus, Moon, PanelLeft, Settings2, Sun, Trash2, XCircle } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "@/hooks/use-theme"
 import { toast } from "sonner"
@@ -15,6 +15,7 @@ import {
   fetchCubiclesSessions,
   fetchCubiclesSettings,
   fetchCubiclesSlashCommands,
+  fetchCubiclesToolReferences,
   stopCubiclesChat,
   streamCubiclesChat,
 } from "@/lib/cubicles-api/client"
@@ -26,22 +27,24 @@ import { type CubiclesBackendState, ensureCubiclesBackend } from "@/lib/tauri/cu
 import { CommandPalette, type CommandPaletteAction } from "@/components/command-palette"
 import { ChatComposer } from "@/components/chat/chat-composer"
 import { ChatTranscript } from "@/components/chat/chat-transcript"
-import { SessionSidebar } from "@/components/sessions/session-sidebar"
+import { SessionSidebar } from "@/components/session-sidebar"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { SettingsScreen, type SettingsTab } from "@/features/settings/settings-screen"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
-import { type SessionSummary, type TranscriptEntry } from "@/lib/demo-data"
+import { type SessionSummary, type TranscriptEntry } from "@/lib/types"
 import { createLogger } from "@/lib/logger"
-import { transcriptToMarkdown, saveToDownloads } from "@/lib/transcript-export"
+import { transcriptToMarkdown } from "@/lib/transcript-export"
 import { cn } from "@/lib/utils"
 import {
   appendEntry,
   buildAssistantFallbackResponse,
   buildAssistantStreamEntryId,
-  buildBackendBadgeLabel,
-  buildBackendTooltipContent,
+  buildBackendInfo,
   buildLiveSessionPlaceholder,
   buildSessionTitle,
+  buildSystemEntry,
+  buildToolEntry,
   buildToolPreviewEntryId,
   mapHistoryToTranscript,
   removeEntry,
@@ -58,10 +61,10 @@ function HeaderMetaChip({ label, value }: { label: string; value: string }) {
   )
 }
 
-const logger = createLogger("desktop-assistant")
+const logger = createLogger("chat-panel")
+const NO_PROFILE_ERROR = "No usable Cubicles profile is available yet. Configure one in Settings → Profiles first."
 
-
-export function DesktopAssistant() {
+export function ChatPanel() {
   const queryClient = useQueryClient()
   const [localSessions, setLocalSessions] = useState<SessionSummary[]>([])
   const [selectedSessionId, setSelectedSessionId] = useState("")
@@ -81,10 +84,22 @@ export function DesktopAssistant() {
   const [deleteCandidateSessionId, setDeleteCandidateSessionId] = useState<string | null>(null)
   const [showWorkingIndicator, setShowWorkingIndicator] = useState(false)
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
+  const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
+    try { return localStorage.getItem("juice:advanced-mode") === "true" } catch { return false }
+  })
+  const [liveUsage, setLiveUsage] = useState<{ total?: number; contextUsedTokens?: number; promptBudget?: number } | null>(null)
   const liveStreamStateRef = useRef<Record<string, { thinkingOpen: boolean }>>({})
   const activeStreamAbortRef = useRef<AbortController | null>(null)
   const activeStreamSessionIdRef = useRef<string | null>(null)
   const transcriptScrollRef = useRef<HTMLDivElement | null>(null)
+
+  function toggleAdvancedMode() {
+    setAdvancedMode((prev) => {
+      const next = !prev
+      try { localStorage.setItem("juice:advanced-mode", String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
 
   useEffect(() => {
     let isMounted = true
@@ -130,6 +145,13 @@ export function DesktopAssistant() {
     enabled: backendState.mode === "ready",
   })
 
+  const toolReferencesQuery = useQuery({
+    queryKey: ["cubicles", "tool-references"],
+    queryFn: fetchCubiclesToolReferences,
+    enabled: backendState.mode === "ready",
+    staleTime: 5 * 60 * 1000,
+  })
+
   const remoteSessionIds = useMemo(
     () => new Set(sessionsQuery.data?.map((session) => session.id) ?? []),
     [sessionsQuery.data]
@@ -172,6 +194,13 @@ export function DesktopAssistant() {
       sessionsQuery.data?.find((session) => session.id === activeSession?.id) ?? null,
     [activeSession?.id, sessionsQuery.data]
   )
+
+  const contextUsagePercent = useMemo(() => {
+    if (liveUsage?.contextUsedTokens != null && liveUsage?.promptBudget) {
+      return Math.round((liveUsage.contextUsedTokens / liveUsage.promptBudget) * 100)
+    }
+    return activeRemoteSession?.context_usage_percent ?? 0
+  }, [liveUsage, activeRemoteSession])
 
   const activeProfileSummary = useMemo(() => {
     if (!profilesQuery.data?.length) {
@@ -217,7 +246,7 @@ export function DesktopAssistant() {
       activeSession
         ? transcripts[activeSession.id] ??
           fallbackHistoryEntries ??
-          buildLiveSessionPlaceholder(activeSession)
+          buildLiveSessionPlaceholder()
         : [],
     [activeSession, fallbackHistoryEntries, transcripts]
   )
@@ -297,13 +326,12 @@ export function DesktopAssistant() {
       ...previousTranscripts,
       [activeSession.id]: mappedHistory,
     }))
-  }, [
-    activeSession?.id,
-    backendState.mode,
-    isStreaming,
-    remoteSessionIds,
-    sessionHistoryQuery.data,
-  ])
+    // NOTE: isStreaming is intentionally excluded from deps. Including it causes a flash:
+    // when streaming ends, this effect would fire with stale query data before the
+    // invalidation has re-fetched fresh history. The guard above is a safety net for
+    // background refetches that happen to land during an active stream.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSession?.id, backendState.mode, remoteSessionIds, sessionHistoryQuery.data])
 
   useEffect(() => {
     if (!activeSession?.id || !pendingApprovalQuery.data) {
@@ -335,16 +363,18 @@ export function DesktopAssistant() {
       const createdSession = await createCubiclesSession(
         buildSessionTitle(visibleSessions.length)
       )
+      await activateCubiclesSession(createdSession.id)
       setTranscripts((previousTranscripts) => ({
         ...previousTranscripts,
         [createdSession.id]: [],
       }))
       setSelectedSessionId(createdSession.id)
       logger.info("Created remote session", { sessionId: createdSession.id })
-      await queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] })
-      await queryClient.invalidateQueries({
-        queryKey: ["cubicles", "session-history", createdSession.id],
-      })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] }),
+        queryClient.invalidateQueries({ queryKey: ["cubicles", "settings"] }),
+        queryClient.invalidateQueries({ queryKey: ["cubicles", "session-history", createdSession.id] }),
+      ])
       return
     }
 
@@ -360,19 +390,9 @@ export function DesktopAssistant() {
     }
 
     setLocalSessions((previousSessions) => [session, ...previousSessions])
-    setTranscripts((previousTranscripts) => ({
-      ...previousTranscripts,
-      [id]: [
-        {
-          id: `system-${id}`,
-          type: "system",
-          label: "New session",
-          content:
-            "This placeholder session is ready for the next phase, where Juice will create and activate real Cubicles sessions through the local desktop backend.",
-          timestamp: "Just now",
-        },
-      ],
-    }))
+    setTranscripts((prev) =>
+      appendEntry(prev, id, buildSystemEntry("New session", "This placeholder session is ready for the next phase, where Juice will create and activate real Cubicles sessions through the local desktop backend."))
+    )
     setSelectedSessionId(id)
   }
 
@@ -577,58 +597,15 @@ export function DesktopAssistant() {
       case "tool_result":
       case "awaiting_approval":
       case "tool_skipped": {
-        const toolName =
-          event.type === "tool_result" || event.type === "tool_running" || event.type === "tool_skipped"
-            ? event.name
-            : event.type === "tool_call"
-              ? String(event.tool.name ?? "tool")
-              : String(event.pendingTool.name ?? "tool")
-        const entryId = `tool-${sessionId}-${streamId}-${toolName}`
-        logger.info("Received tool event", {
-          sessionId,
-          streamId,
-          eventType: event.type,
-          toolName,
-        })
+        const entry = buildToolEntry(event, sessionId, streamId)
+        logger.info("Received tool event", { sessionId, streamId, eventType: event.type, toolName: entry.name })
         setShowWorkingIndicator(false)
-        setTranscripts((previousTranscripts) =>
+        setTranscripts((prev) =>
           upsertEntry(
-            removeEntry(previousTranscripts, sessionId, buildToolPreviewEntryId(sessionId, streamId)),
+            removeEntry(prev, sessionId, buildToolPreviewEntryId(sessionId, streamId)),
             sessionId,
-            entryId,
-            () => ({
-              id: entryId,
-              type: "tool",
-              name: toolName,
-              status:
-                event.type === "tool_result" || event.type === "tool_skipped"
-                  ? "completed"
-                  : event.type === "awaiting_approval"
-                    ? "awaiting-approval"
-                    : "running",
-              detail:
-                event.type === "tool_call"
-                  ? event.detail
-                  : event.type === "tool_running"
-                    ? event.detail
-                    : event.type === "awaiting_approval"
-                      ? "Waiting for user approval before execution."
-                      : "Tool execution update",
-              output:
-                event.type === "tool_result"
-                  ? event.output
-                  : event.type === "tool_skipped"
-                    ? "Tool execution was skipped."
-                    : event.type === "tool_call"
-                      ? JSON.stringify(event.tool, null, 2)
-                      : event.type === "awaiting_approval"
-                        ? JSON.stringify(event.pendingTool, null, 2)
-                        : "Running...",
-              timestamp: "Now",
-              approvalId: event.type === "awaiting_approval" ? event.approvalId : undefined,
-              step: event.type === "tool_call" ? event.step : undefined,
-              maxSteps: event.type === "tool_call" ? event.maxSteps : undefined,
-            })
+            entry.id,
+            () => entry,
           )
         )
         return
@@ -651,6 +628,7 @@ export function DesktopAssistant() {
         return
       }
       case "usage": {
+        setLiveUsage(event.usage as { total?: number; contextUsedTokens?: number; promptBudget?: number })
         return
       }
       case "compressing": {
@@ -667,21 +645,16 @@ export function DesktopAssistant() {
         return
       }
       case "turn_summary": {
-        // Only surface if non-trivial
-        if (event.toolsCalled === 0 && event.errorCount === 0) return
-        const parts: string[] = []
-        if (event.steps > 0) parts.push(`${event.steps} step${event.steps !== 1 ? "s" : ""}`)
-        if (event.toolsCalled > 0) parts.push(`${event.toolsCalled} tool${event.toolsCalled !== 1 ? "s" : ""}`)
-        if (event.tokensUsed > 0) parts.push(`${event.tokensUsed.toLocaleString()} tokens`)
-        if (event.errorCount > 0) parts.push(`${event.errorCount} error${event.errorCount !== 1 ? "s" : ""}`)
         const entryId = `turn-summary-${sessionId}-${streamId}`
         setTranscripts((prev) =>
           upsertEntry(prev, sessionId, entryId, () => ({
             id: entryId,
-            type: "system",
-            label: "Turn",
+            type: "turn-summary" as const,
+            steps: event.steps,
+            toolsCalled: event.toolsCalled,
+            tokensUsed: event.tokensUsed,
+            errorCount: event.errorCount,
             timestamp: "Now",
-            content: parts.join(" · "),
           }))
         )
         return
@@ -700,15 +673,8 @@ export function DesktopAssistant() {
             buildToolPreviewEntryId(sessionId, streamId)
           )
         )
-        const entryId = `error-${sessionId}-${crypto.randomUUID()}`
-        setTranscripts((previousTranscripts) =>
-          appendEntry(previousTranscripts, sessionId, {
-            id: entryId,
-            type: "system",
-            label: "Error",
-            timestamp: "Now",
-            content: event.message,
-          })
+        setTranscripts((prev) =>
+          appendEntry(prev, sessionId, buildSystemEntry("Error", event.message))
         )
         delete liveStreamStateRef.current[streamId]
         return
@@ -716,6 +682,7 @@ export function DesktopAssistant() {
       case "done": {
         logger.info("Chat stream completed", { sessionId, streamId })
         setShowWorkingIndicator(false)
+        setLiveUsage(null)
         setTranscripts((previousTranscripts) =>
           removeEntry(
             closeThinkingBlock(previousTranscripts, sessionId, streamId),
@@ -757,27 +724,15 @@ export function DesktopAssistant() {
 
       logger.error("Chat stream request failed", { sessionId, streamId, error })
       setShowWorkingIndicator(false)
-      setTranscripts((previousTranscripts) =>
-        closeThinkingBlock(previousTranscripts, sessionId, streamId)
-      )
+      setTranscripts((prev) => closeThinkingBlock(prev, sessionId, streamId))
       delete liveStreamStateRef.current[streamId]
-      const entryId = `error-${crypto.randomUUID()}`
-      setTranscripts((previousTranscripts) =>
-        appendEntry(previousTranscripts, sessionId, {
-          id: entryId,
-          type: "system",
-          label: "Error",
-          timestamp: "Now",
-          content: error instanceof Error ? error.message : String(error),
-        })
+      setTranscripts((prev) =>
+        appendEntry(prev, sessionId, buildSystemEntry("Error", error instanceof Error ? error.message : String(error)))
       )
-    } finally {
-      if (activeStreamAbortRef.current === abortController) {
-        activeStreamAbortRef.current = null
-      }
-      if (activeStreamSessionIdRef.current === sessionId) {
-        activeStreamSessionIdRef.current = null
-      }
+      activeStreamAbortRef.current = null
+    }
+    if (activeStreamSessionIdRef.current === sessionId) {
+      activeStreamSessionIdRef.current = null
     }
   }
 
@@ -799,14 +754,8 @@ export function DesktopAssistant() {
     }
 
     activeStreamAbortRef.current?.abort()
-    setTranscripts((previousTranscripts) =>
-      appendEntry(previousTranscripts, sessionId, {
-        id: `stop-${crypto.randomUUID()}`,
-        type: "system",
-        label: "Stopped",
-        timestamp: "Now",
-        content: "Generation interrupted.",
-      })
+    setTranscripts((prev) =>
+      appendEntry(prev, sessionId, buildSystemEntry("Stopped", "Generation interrupted."))
     )
   }
 
@@ -841,15 +790,8 @@ export function DesktopAssistant() {
       settingsQuery.data?.default_profile ?? profilesQuery.data?.[0]?.name ?? null
 
     if (!profileName) {
-      const entryId = `error-${crypto.randomUUID()}`
-      setTranscripts((previousTranscripts) =>
-        appendEntry(previousTranscripts, sessionId, {
-          id: entryId,
-          type: "system",
-          label: "Error",
-          timestamp: "Now",
-          content: "No usable Cubicles profile is available yet. Configure one in profiles/settings first.",
-        })
+      setTranscripts((prev) =>
+        appendEntry(prev, sessionId, buildSystemEntry("Error", NO_PROFILE_ERROR))
       )
       return
     }
@@ -893,15 +835,8 @@ export function DesktopAssistant() {
     }
 
     if (backendState.mode !== "ready") {
-      const entryId = `error-${crypto.randomUUID()}`
-      setTranscripts((previousTranscripts) =>
-        appendEntry(previousTranscripts, activeSession.id, {
-          id: entryId,
-          type: "system",
-          label: "Error",
-          timestamp: "Now",
-          content: "Slash commands require a ready Cubicles backend connection.",
-        })
+      setTranscripts((prev) =>
+        appendEntry(prev, activeSession.id, buildSystemEntry("Error", "Slash commands require a ready Cubicles backend connection."))
       )
       return
     }
@@ -911,15 +846,8 @@ export function DesktopAssistant() {
       settingsQuery.data?.default_profile ?? profilesQuery.data?.[0]?.name ?? null
 
     if (!profileName) {
-      const entryId = `error-${crypto.randomUUID()}`
-      setTranscripts((previousTranscripts) =>
-        appendEntry(previousTranscripts, sessionId, {
-          id: entryId,
-          type: "system",
-          label: "Error",
-          timestamp: "Now",
-          content: "No usable Cubicles profile is available yet. Configure one in profiles/settings first.",
-        })
+      setTranscripts((prev) =>
+        appendEntry(prev, sessionId, buildSystemEntry("Error", NO_PROFILE_ERROR))
       )
       return
     }
@@ -964,15 +892,8 @@ export function DesktopAssistant() {
       }
     } catch (error) {
       logger.error("Slash command failed", { sessionId, command, error })
-      const entryId = `error-${crypto.randomUUID()}`
-      setTranscripts((previousTranscripts) =>
-        appendEntry(previousTranscripts, sessionId, {
-          id: entryId,
-          type: "system",
-          label: "Error",
-          timestamp: "Now",
-          content: error instanceof Error ? error.message : String(error),
-        })
+      setTranscripts((prev) =>
+        appendEntry(prev, sessionId, buildSystemEntry("Error", error instanceof Error ? error.message : String(error)))
       )
     } finally {
       setIsStreaming(false)
@@ -1007,17 +928,11 @@ export function DesktopAssistant() {
 
     if (decision.redirectMessage) {
       const redirectMessage = decision.redirectMessage
-      setTranscripts((previousTranscripts) =>
-        appendEntry(previousTranscripts, sessionId, {
-          id: `approval-redirect-${crypto.randomUUID()}`,
-          type: "system",
-          label: "Approval redirect",
-          timestamp: "Now",
-          content: redirectMessage,
-        })
+      setTranscripts((prev) =>
+        appendEntry(prev, sessionId, buildSystemEntry("Approval redirect", redirectMessage))
       )
-      setTranscripts((previousTranscripts) =>
-        setToolEntryByApprovalId(previousTranscripts, sessionId, approvalId, (entry) => ({
+      setTranscripts((prev) =>
+        setToolEntryByApprovalId(prev, sessionId, approvalId, (entry) => ({
           ...entry,
           status: "completed",
           detail: "Redirected with user guidance instead of running the tool.",
@@ -1079,16 +994,16 @@ export function DesktopAssistant() {
     if (activeSession && activeEntries.length > 0) {
       actions.push({
         id: "export",
-        label: "Export Transcript",
-        icon: <Download className="size-4" />,
+        label: "Copy Transcript as Markdown",
+        icon: <Clipboard className="size-4" />,
         onSelect: () => {
           const md = transcriptToMarkdown(activeEntries, activeSession.title)
-          saveToDownloads(md, activeSession.title)
-            .then((path) => {
-              toast.success("Transcript saved", { description: path })
+          navigator.clipboard.writeText(md)
+            .then(() => {
+              toast.success("Copied to clipboard")
             })
             .catch(() => {
-              toast.error("Export failed", { description: "Could not write to Downloads folder." })
+              toast.error("Copy failed", { description: "Could not write to clipboard." })
             })
         },
       })
@@ -1161,7 +1076,7 @@ export function DesktopAssistant() {
           />
 
           <SidebarInset className="flex min-w-0 flex-col overflow-hidden">
-          <header className="border-b border-border/70 bg-background/70 px-4 py-2 backdrop-blur-xl md:px-6">
+          <header className="relative border-b border-border/70 bg-background/70 px-4 py-2 backdrop-blur-xl md:px-6">
             <div className={cn("mx-auto flex w-full items-center justify-between gap-4", contentWidthClass)}>
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
@@ -1175,27 +1090,34 @@ export function DesktopAssistant() {
                     {activeView === "settings" ? "Settings" : activeSession?.title ?? "Juice"}
                   </h2>
                   <div className="group/status relative flex shrink-0 items-center">
-                    <button
-                      type="button"
-                      className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
-                      aria-label={buildBackendBadgeLabel(backendState)}
-                    >
-                      <span
-                        className={cn(
-                          "block size-2.5 rounded-full",
-                          backendState.mode === "ready"
-                            ? "bg-emerald-500 shadow-[0_0_0_4px_rgba(34,197,94,0.15)]"
-                            : backendState.mode === "error"
-                              ? "bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]"
-                              : "bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.18)]"
-                        )}
-                      >
-                        <span className="sr-only">{buildBackendBadgeLabel(backendState)}</span>
-                      </span>
-                    </button>
-                    <div className="pointer-events-none absolute top-full left-1/2 z-20 mt-3 w-72 -translate-x-1/2 rounded-xl border border-border/70 bg-background/95 px-3 py-2 text-xs leading-relaxed text-foreground opacity-0 shadow-lg backdrop-blur transition-opacity duration-150 group-hover/status:opacity-100 group-focus-within/status:opacity-100">
-                      {buildBackendTooltipContent(backendState)}
-                    </div>
+                    {(() => {
+                      const { label, tooltip } = buildBackendInfo(backendState)
+                      return (
+                        <>
+                          <button
+                            type="button"
+                            className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/70"
+                            aria-label={label}
+                          >
+                            <span
+                              className={cn(
+                                "block size-2.5 rounded-full",
+                                backendState.mode === "ready"
+                                  ? "bg-emerald-500 shadow-[0_0_0_4px_rgba(34,197,94,0.15)]"
+                                  : backendState.mode === "error"
+                                    ? "bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]"
+                                    : "bg-amber-400 shadow-[0_0_0_4px_rgba(251,191,36,0.18)]"
+                              )}
+                            >
+                              <span className="sr-only">{label}</span>
+                            </span>
+                          </button>
+                          <div className="pointer-events-none absolute top-full left-1/2 z-20 mt-3 w-72 -translate-x-1/2 rounded-xl border border-border/70 bg-background/95 px-3 py-2 text-xs leading-relaxed text-foreground opacity-0 shadow-lg backdrop-blur transition-opacity duration-150 group-hover/status:opacity-100 group-focus-within/status:opacity-100">
+                            {tooltip}
+                          </div>
+                        </>
+                      )
+                    })()}
                   </div>
                 </div>
                 {activeView === "settings" ? (
@@ -1220,40 +1142,79 @@ export function DesktopAssistant() {
                         "Not selected"
                       }
                     />
+                    {advancedMode && contextUsagePercent > 0 && (
+                      <HeaderMetaChip
+                        label="CTX"
+                        value={`${contextUsagePercent}%`}
+                      />
+                    )}
                   </div>
                 )}
               </div>
 
-              {activeView === "chat" && activeSession && activeEntries.length > 0 && (
+              <div className="flex shrink-0 items-center gap-1">
+                {activeView === "chat" && activeSession && activeEntries.length > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="rounded-full"
+                        onClick={() => {
+                          const md = transcriptToMarkdown(activeEntries, activeSession.title)
+                          navigator.clipboard.writeText(md)
+                            .then(() => toast.success("Copied to clipboard"))
+                            .catch(() => toast.error("Copy failed", { description: "Could not write to clipboard." }))
+                        }}
+                        aria-label="Copy transcript as markdown"
+                      >
+                        <Clipboard className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">Copy as Markdown</TooltipContent>
+                  </Tooltip>
+                )}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant={advancedMode ? "secondary" : "ghost"}
+                      size="icon-sm"
+                      className="rounded-full"
+                      onClick={toggleAdvancedMode}
+                      aria-label={advancedMode ? "Hide backend details" : "Show advanced details"}
+                    >
+                      <BarChart2 className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom">
+                    {advancedMode ? "Hide details" : "Advanced mode"}
+                  </TooltipContent>
+                </Tooltip>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="shrink-0 rounded-full"
-                  onClick={() => {
-                    const md = transcriptToMarkdown(activeEntries, activeSession.title)
-                    saveToDownloads(md, activeSession.title)
-                      .then((path) => {
-                        toast.success("Transcript saved", { description: path })
-                      })
-                      .catch(() => {
-                        toast.error("Export failed", { description: "Could not write to Downloads folder." })
-                      })
-                  }}
-                  aria-label="Export transcript"
+                  className="rounded-full"
+                  onClick={toggleTheme}
+                  aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                 >
-                  <Download className="size-4" />
+                  {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
                 </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0 rounded-full"
-                onClick={toggleTheme}
-                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              >
-                {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-              </Button>
+              </div>
             </div>
+            {advancedMode && contextUsagePercent > 0 && (
+              <div
+                className="absolute bottom-0 left-0 h-[2px] transition-all duration-500"
+                style={{
+                  width: `${Math.min(contextUsagePercent, 100)}%`,
+                  background:
+                    contextUsagePercent >= 80
+                      ? "var(--destructive)"
+                      : contextUsagePercent >= 50
+                        ? "oklch(0.75 0.18 80)"
+                        : "var(--primary)",
+                }}
+              />
+            )}
           </header>
 
           {activeView === "settings" ? (
@@ -1325,7 +1286,9 @@ export function DesktopAssistant() {
                   <div className={cn("mx-auto w-full", contentWidthClass)}>
                     <ChatTranscript
                       entries={activeEntries}
+                      isStreaming={isStreaming}
                       showWorkingIndicator={showWorkingIndicator}
+                      advancedMode={advancedMode}
                       approvalBusy={isStreaming}
                       onApproveApproval={(approvalId) => {
                         void handleApprovalAction(approvalId, { approved: true })
@@ -1357,6 +1320,7 @@ export function DesktopAssistant() {
                         id: session.id,
                         title: session.title,
                       }))}
+                      toolReferences={toolReferencesQuery.data ?? []}
                     />
                   </div>
                 </div>

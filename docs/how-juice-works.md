@@ -8,7 +8,6 @@ The app is split into three layers:
 
 - **Tauri** provides the desktop window and native shell access.
 - The shell plugin is used to build and start a local Cubicles server process.
-- The FS plugin is used for transcript export (saves Markdown files to the user's Downloads folder).
 - In development, Juice always rebuilds and starts the live `cubicles-ts` checkout.
 - In packaged builds, `tauri build` snapshots Cubicles into `src-tauri/resources/cubicles-runtime` using npm tarballs plus a production-only install, then launches that bundled runtime instead.
 - Juice targets a dedicated local backend port:
@@ -29,12 +28,13 @@ Relevant files:
 ## 2. React UI
 
 - **Vite + React** render the full-width chat screen, settings surfaces, and shadcn sidebar.
-- `DesktopAssistant` owns the app-level flow for backend startup, session loading, history loading, and chat streaming.
+- `ChatPanel` owns the app-level flow for backend startup, session loading, history loading, and chat streaming.
 - Layout uses a flat flex structure inside `SidebarInset`: `header` → scrollable transcript (`flex-1 overflow-y-auto`) → composer (`shrink-0`). This prevents rerender-induced width/height collapse.
 - The composer shows slash-command autocomplete in a compact popup **above** the text area.
 - Slash command/result pairs are kept inline in the transcript.
 - The session sidebar supports create, select, search/filter, and delete flows.
 - Session deletion goes through the shared slash dispatcher (`/sessions delete <id>`) so Juice follows the backend-selected active session after a delete.
+- Transcript can be copied as Markdown to the clipboard via the header button or command palette (⌘K).
 
 ### Transcript rendering
 
@@ -43,9 +43,27 @@ The transcript renders:
 - assistant markdown with Shiki syntax-highlighted code blocks
 - slash command/result entries
 - collapsible thinking sections — from live `<think>...</think>` blocks and from persisted `thinking` history rows
-- `turn_summary` and `compressing` stream events (shown as system entries)
-- tool and system entries with collapsible step indicators
+- `compressing` stream events (shown as system entries)
+- `turn_summary` stream events — stored as `turn-summary` entries; shown as compact pill cards (steps · tools · tokens · errors) only in **Advanced Mode**
+- tool cards with step indicators, collapsible arguments (awaiting approval) and collapsible output (completed)
 - inline approval controls (approve, reject, redirect with note)
+
+### Advanced Mode
+
+A `BarChart2` icon button in the header toggles **Advanced Mode** (persisted in `localStorage` as `juice:advanced-mode`).
+
+| Feature | Pure mode | Advanced mode |
+|---------|-----------|---------------|
+| CTX chip in header | Hidden | Shows live context usage % |
+| Progress bar | Hidden | Thin bar across header bottom (green→amber→red) |
+| Turn summary cards | Hidden | Compact pill after each turn |
+
+Context usage % is taken from the live `usage` SSE event during streaming, and from the `context_usage_percent` field on the session API response at rest.
+
+### Composer
+
+- Slash command autocomplete: type `/` to see available commands
+- **@ reference autocomplete**: type `@` to see available tools/skills/APIs from `GET /api/tools/references`; uses the same keyboard-navigable dropdown as slash commands; shows a `Hash` icon to distinguish references from commands
 
 ### Settings
 
@@ -60,13 +78,14 @@ Eight tabs — all create/edit forms use shadcn `Dialog`, not inline collapsible
 | APIs | Description-only rows; Register API dialog; Edit API dialog (pencil button) |
 | Extensions | Enable/default toggles |
 | Skills | Enable/default toggles |
-| Harness | Full harness config (budget, steps, reserve multipliers, prompt budget, etc.) |
+| Harness | Full harness configuration surface (budget, steps, reserve multipliers, etc.) |
 
 Relevant files:
 
-- `src/features/assistant/desktop-assistant.tsx`
-- `src/components/chat/*`
-- `src/components/sessions/*`
+- `src/features/chat/chat-panel.tsx`
+- `src/features/chat/transcript-helpers.ts`
+- `src/components/chat/`
+- `src/components/session-sidebar.tsx`
 - `src/features/settings/settings-screen.tsx`
 - `src/features/settings/profiles-tab.tsx`
 - `src/features/settings/workspaces-tab.tsx`
@@ -93,7 +112,7 @@ Relevant files:
 
 ## Startup flow
 
-1. `DesktopAssistant` mounts.
+1. `ChatPanel` mounts.
 2. It calls `ensureCubiclesBackend()`.
 3. `ensureCubiclesBackend()` checks `http://127.0.0.1:7799/health`.
 4. If no healthy backend is found, Juice runs:
@@ -115,6 +134,7 @@ After backend startup, the UI uses:
 - `GET /api/chat/pending/:sessionId`
 - `GET /api/slash`
 - `POST /api/slash`
+- `GET /api/tools/references`
 - `GET /api/workspaces`
 - `POST /api/workspaces`
 - `PUT /api/workspaces/:id`

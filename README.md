@@ -12,15 +12,21 @@ Juice is a slim, modern desktop UI layer around Cubicles.
 - Renders collapsible thinking sections from live `<think>` blocks and persisted history
 - Renders slash command / result pairs inline in the transcript
 - Inline approve / reject / redirect controls for pending tool approvals
-- Slash command autocomplete popup above the composer (compact, keyboard-navigable)
-- Transcript export — downloads session as Markdown with a Sonner toast showing the save path
+- Slash command autocomplete popup above the composer (keyboard-navigable)
+- **@ reference autocomplete** — type `@` to surface available tools, skills, and APIs for use in your message
+- Copy transcript as Markdown to clipboard (header button or ⌘K command palette)
 - Command palette (⌘K) for quick actions: new session, settings, export, delete
+
+**Advanced Mode**
+- Toggle the `BarChart2` button in the header to switch between Pure and Advanced mode
+- **Pure mode** (default): clean chat surface with no backend metadata
+- **Advanced mode**: adds a CTX chip (live context usage %) in the header, a thin progress bar across the header bottom (green → amber → red by usage %), and compact turn-summary cards (steps · tools · tokens · errors) after each agentic loop turn
 
 **Sessions**
 - Lists, creates, activates, and deletes Cubicles sessions from the sidebar
 - Sidebar search/filter by title, workspace, or preview text
 - Rehydrates full persisted session history on activation
-- Handles `turn_summary` and `compressing` events from the Cubicles stream
+- Handles `turn_summary`, `usage`, and `compressing` events from the Cubicles stream
 
 **Settings** — multi-tab dialog with compact, dialog-based create/edit forms:
 - **Overview** — backend health, connection diagnostics, provider hints
@@ -50,7 +56,7 @@ Juice does **not** import `@cubicles/*` directly into the app bundle. It supervi
 │  Tauri shell                        │
 │  – desktop window                   │
 │  – Cubicles process supervision     │
-│  – shell plugin + FS plugin         │
+│  – shell plugin                     │
 └───────────────┬─────────────────────┘
                 │ HTTP / SSE
 ┌───────────────▼─────────────────────┐

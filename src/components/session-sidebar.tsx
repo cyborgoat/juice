@@ -17,7 +17,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { cn } from "@/lib/utils"
-import type { SessionSummary } from "@/lib/demo-data"
+import type { SessionSummary } from "@/lib/types"
 
 type SessionSidebarProps = {
   sessions: SessionSummary[]

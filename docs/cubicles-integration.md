@@ -74,7 +74,7 @@ Local backend target: `http://127.0.0.1:7799`
 
 ## UI usage
 
-`src/features/assistant/desktop-assistant.tsx` orchestrates:
+`src/features/chat/chat-panel.tsx` orchestrates:
 
 - fetch settings, profiles, sessions on mount
 - fetch + render session history on activation

@@ -51,4 +51,14 @@ type SlashEntry = {
   timestamp: string
 }
 
-export type TranscriptEntry = MessageEntry | ToolEntry | ToolPreviewEntry | SystemEntry | SlashEntry
+type TurnSummaryEntry = {
+  id: string
+  type: "turn-summary"
+  steps: number
+  toolsCalled: number
+  tokensUsed: number
+  errorCount: number
+  timestamp: string
+}
+
+export type TranscriptEntry = MessageEntry | ToolEntry | ToolPreviewEntry | SystemEntry | SlashEntry | TurnSummaryEntry
