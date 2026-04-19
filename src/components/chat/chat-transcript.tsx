@@ -15,6 +15,7 @@ type ChatTranscriptProps = {
   entries: TranscriptEntry[]
   isStreaming?: boolean
   showWorkingIndicator?: boolean
+  workingLabel?: string
   advancedMode?: boolean
   onApproveApproval?: (approvalId: string) => void
   onRejectApproval?: (approvalId: string) => void
@@ -27,6 +28,7 @@ export function ChatTranscript({
   entries,
   isStreaming = false,
   showWorkingIndicator = false,
+  workingLabel = "Working…",
   advancedMode = false,
   onApproveApproval,
   onRejectApproval,
@@ -431,7 +433,7 @@ export function ChatTranscript({
                 <span className="size-2 rounded-full bg-muted-foreground/70 animate-pulse [animation-delay:-0.3s]" />
                 <span className="size-2 rounded-full bg-muted-foreground/70 animate-pulse [animation-delay:-0.15s]" />
                 <span className="size-2 rounded-full bg-muted-foreground/70 animate-pulse" />
-                <TextShimmer className="text-xs">Working…</TextShimmer>
+                <TextShimmer className="text-xs">{workingLabel}</TextShimmer>
               </div>
             </div>
           </motion.div>

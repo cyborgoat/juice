@@ -82,7 +82,11 @@ export function ChatPanel() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [isMutatingSession, setIsMutatingSession] = useState(false)
   const [deleteCandidateSessionId, setDeleteCandidateSessionId] = useState<string | null>(null)
-  const [showWorkingIndicator, setShowWorkingIndicator] = useState(false)
+  const [workingLabel, setWorkingLabel] = useState<string | null>(null)
+  const showWorkingIndicator = workingLabel !== null
+  function setShowWorkingIndicator(value: boolean | string) {
+    setWorkingLabel(value === false || value === null ? null : value === true ? "Working…" : value)
+  }
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const [advancedMode, setAdvancedMode] = useState<boolean>(() => {
     try { return localStorage.getItem("juice:advanced-mode") === "true" } catch { return false }
@@ -594,12 +598,16 @@ export function ChatPanel() {
       }
       case "tool_call":
       case "tool_running":
-      case "tool_result":
       case "awaiting_approval":
+      case "tool_result":
       case "tool_skipped": {
         const entry = buildToolEntry(event, sessionId, streamId)
         logger.info("Received tool event", { sessionId, streamId, eventType: event.type, toolName: entry.name })
-        setShowWorkingIndicator(false)
+        // After tool completion the agent loop immediately resumes — show the
+        // working indicator so the user knows the LLM is still processing the
+        // result. Approval pauses the loop so leave the indicator off there.
+        const resumesLoop = event.type === "tool_result" || event.type === "tool_skipped"
+        setShowWorkingIndicator(resumesLoop ? "Analysing result…" : false)
         setTranscripts((prev) =>
           upsertEntry(
             removeEntry(prev, sessionId, buildToolPreviewEntryId(sessionId, streamId)),
@@ -1288,6 +1296,7 @@ export function ChatPanel() {
                       entries={activeEntries}
                       isStreaming={isStreaming}
                       showWorkingIndicator={showWorkingIndicator}
+                      workingLabel={workingLabel ?? "Working…"}
                       advancedMode={advancedMode}
                       approvalBusy={isStreaming}
                       onApproveApproval={(approvalId) => {
