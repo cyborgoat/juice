@@ -51,8 +51,8 @@ export function ChatToolCard({
 
   return (
     <>
-      <div className="min-w-0 w-full overflow-hidden rounded-xl border border-border/70 bg-card/70 shadow-sm">
-        <div className="flex items-center gap-2 px-3 py-2">
+      <div className="min-w-0 w-full overflow-hidden rounded-lg border border-border/70 bg-card/70 shadow-sm">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5">
           {entry.step != null && (
             <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] tabular-nums bg-muted text-muted-foreground">
               {entry.maxSteps != null && entry.maxSteps > 1
@@ -84,25 +84,25 @@ export function ChatToolCard({
           )}
         </div>
 
-        <div className="border-t border-border/50 px-3 py-2 text-xs text-muted-foreground">
+        <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground">
           {isRunning ? <TextShimmer>{entry.statusMessage}</TextShimmer> : entry.statusMessage}
         </div>
 
         {isAwaiting && showArguments ? (
           <div className="border-t border-border/50">
             <details className="group/args">
-              <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground">
-                <ShieldCheck className="size-3 text-amber-500" />
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground">
+                <ShieldCheck className="size-2.5 text-amber-500" />
                 <span>Arguments</span>
                 <ChevronRight className="ml-auto size-3 transition-transform group-open/args:rotate-90" />
               </summary>
-              <pre className="mx-3 mb-2 max-h-48 overflow-y-auto rounded-lg bg-background/80 px-3 py-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-all">
+              <pre className="mx-2.5 mb-1.5 max-h-40 overflow-y-auto rounded-md bg-background/80 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
                 {entry.argumentsText}
               </pre>
             </details>
             {entry.approvalId && (onApproveApproval || onRejectApproval || onRedirectApproval) ? (
-              <div className="mx-3 mb-3 rounded-xl border border-border/70 bg-background/70 p-2.5">
-                <div className="mb-2 flex flex-wrap gap-2">
+              <div className="mx-2.5 mb-2 rounded-lg border border-border/70 bg-background/70 p-2">
+                <div className="mb-1.5 flex flex-wrap gap-1.5">
                   <Button
                     type="button"
                     size="sm"
@@ -129,7 +129,7 @@ export function ChatToolCard({
                     onChange={(event) => onRedirectValueChange(event.target.value)}
                     placeholder="Redirect with a note…"
                     disabled={approvalBusy}
-                    className="h-9 rounded-xl"
+                    className="h-7 rounded-lg text-xs"
                   />
                   <Button
                     type="button"
@@ -149,14 +149,14 @@ export function ChatToolCard({
 
         {showOutput ? (
           <details className="group/out border-t border-border/50">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground">
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground">
               <span>
                 Output{entry.returnCode != null ? ` · exit ${entry.returnCode}` : ""}
               </span>
               <CopyButton text={entry.output ?? ""} />
               <ChevronRight className="ml-auto size-3 transition-transform group-open/out:rotate-90" />
             </summary>
-            <pre className="mx-3 mb-2 max-h-64 resize-y overflow-y-auto rounded-lg bg-background/80 px-3 py-2 font-mono text-xs text-muted-foreground whitespace-pre-wrap break-words">
+            <pre className="mx-2.5 mb-1.5 max-h-52 resize-y overflow-y-auto rounded-md bg-background/80 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
               {entry.output}
             </pre>
           </details>

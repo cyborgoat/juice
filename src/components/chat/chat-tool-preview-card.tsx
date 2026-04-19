@@ -35,10 +35,10 @@ export function ChatToolPreviewCard({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -12 }}
-        className="min-w-0 w-full overflow-hidden rounded-xl border border-dashed border-primary/25 bg-primary/5"
+        className="min-w-0 w-full overflow-hidden rounded-lg border border-dashed border-primary/25 bg-primary/5"
       >
-        <div className="flex items-center gap-2 px-3 py-2 text-[11px]">
-          <Terminal className="size-3.5 shrink-0 text-primary/60" />
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px]">
+          <Terminal className="size-3 shrink-0 text-primary/60" />
           <span className="flex-1 font-medium">
             {isGenerating ? (
               <TextShimmer className="text-primary/70">Generating tool call…</TextShimmer>

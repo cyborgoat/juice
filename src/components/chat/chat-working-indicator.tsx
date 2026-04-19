@@ -1,4 +1,3 @@
-import { Bot } from "lucide-react"
 import { motion } from "motion/react"
 
 import { TextShimmer } from "@/components/ui/text-shimmer"
@@ -13,17 +12,21 @@ export function ChatWorkingIndicator({ label }: { label: string }) {
       className="flex w-full min-w-0 justify-start"
     >
       <div className="flex min-w-0 w-full max-w-none flex-col items-start">
-        <div className="mb-1.5 flex gap-3 px-1 text-[11px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Bot className="size-3.5" />
+        <div className="mb-0.5 flex gap-2 px-0.5 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" className="shrink-0" style={{ verticalAlign: "middle" }}>
+              <path d="M9 4 L10.5 1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+              <path d="M3.5 4h7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+              <path d="M4 4h6l-1 8.5H5L4 4Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+            </svg>
             Juice
           </span>
           <span className="ml-auto">Now</span>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-[1.35rem] border border-border/70 bg-card/70 px-3.5 py-2.5 shadow-sm">
-          <span className="size-2 rounded-full bg-muted-foreground/70 animate-pulse [animation-delay:-0.3s]" />
-          <span className="size-2 rounded-full bg-muted-foreground/70 animate-pulse [animation-delay:-0.15s]" />
-          <span className="size-2 rounded-full bg-muted-foreground/70 animate-pulse" />
+        <div className="inline-flex items-center gap-1.5 rounded-xl border border-border/70 bg-card/70 px-2.5 py-1.5 shadow-sm">
+          <span className="size-1.5 rounded-full bg-muted-foreground/70 animate-pulse [animation-delay:-0.3s]" />
+          <span className="size-1.5 rounded-full bg-muted-foreground/70 animate-pulse [animation-delay:-0.15s]" />
+          <span className="size-1.5 rounded-full bg-muted-foreground/70 animate-pulse" />
           <TextShimmer className="text-xs">{label}</TextShimmer>
         </div>
       </div>

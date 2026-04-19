@@ -4,7 +4,6 @@ import { useState } from "react"
 
 import { ChatMarkdown } from "@/components/chat/chat-markdown"
 import { ChatMessageRow } from "@/components/chat/chat-message-row"
-import { ChatSlashRow } from "@/components/chat/chat-slash-row"
 import { ChatToolCard } from "@/components/chat/chat-tool-card"
 import { ChatToolPreviewCard } from "@/components/chat/chat-tool-preview-card"
 import { ChatTurnSummaryRow } from "@/components/chat/chat-turn-summary-row"
@@ -46,7 +45,7 @@ export function ChatTranscript({
   }
 
   return (
-    <div className="flex min-w-0 w-full flex-col space-y-2 px-3 py-2 md:px-4 md:py-3">
+    <div className="flex min-w-0 w-full flex-col space-y-1.5 px-2 py-1.5 md:px-3 md:py-2">
       <AnimatePresence initial={false}>
         {entries.map((entry) => {
           if (entry.type === "message") {
@@ -54,7 +53,18 @@ export function ChatTranscript({
           }
 
           if (entry.type === "slash") {
-            return <ChatSlashRow key={entry.id} entry={entry} />
+            return (
+              <ChatMessageRow
+                key={entry.id}
+                entry={{
+                  id: entry.id,
+                  type: "message",
+                  role: entry.variant === "command" ? "user" : "assistant",
+                  content: entry.content,
+                  timestamp: entry.timestamp,
+                }}
+              />
+            )
           }
 
           if (entry.type === "tool-preview") {
@@ -100,7 +110,7 @@ export function ChatTranscript({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               className={cn(
-                "min-w-0 w-full rounded-xl border px-3 py-2",
+                "min-w-0 w-full rounded-lg border px-2.5 py-1.5",
                 entry.label === "Error"
                   ? "border-destructive/30 bg-destructive/5"
                   : "border-dashed border-primary/30 bg-primary/5"
@@ -108,15 +118,15 @@ export function ChatTranscript({
             >
               <div
                 className={cn(
-                  "flex items-center gap-2 text-[11px]",
+                  "flex items-center gap-1.5 text-[10px]",
                   entry.label === "Error" ? "text-destructive" : "text-primary"
                 )}
               >
-                {entry.label === "Error" ? <XCircle className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                {entry.label === "Error" ? <XCircle className="size-3" /> : <Sparkles className="size-3" />}
                 <span>{entry.label}</span>
                 <span className="text-muted-foreground">{entry.timestamp}</span>
               </div>
-              <div className="mt-1.5 text-sm leading-5 text-muted-foreground">
+              <div className="mt-1 text-xs leading-4 text-muted-foreground">
                 <ChatMarkdown content={entry.content} />
               </div>
             </motion.div>
