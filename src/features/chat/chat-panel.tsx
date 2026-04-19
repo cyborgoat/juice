@@ -1198,7 +1198,7 @@ export function ChatPanel() {
                   </div>
                 </div>
 
-                <div className="shrink-0 border-t border-border/70 bg-background/88 px-3 py-3 backdrop-blur md:px-4">
+                <div className="shrink-0 border-t border-border/70 bg-background/88 px-3 py-2 backdrop-blur md:px-4">
                   <div className={cn("mx-auto w-full", contentWidthClass)}>
                     <ChatComposer
                       onSubmit={(value) => {

@@ -94,7 +94,20 @@ export function ChatComposer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+    // Cmd+Enter or Alt+Enter → insert new line (let default run)
+    if (event.key === "Enter" && (event.metaKey || event.altKey)) {
+      return
+    }
+
+    // Plain Enter with suggestions → apply suggestion
+    if (event.key === "Enter" && !event.shiftKey && activeSuggestions.length) {
+      event.preventDefault()
+      applySuggestion(selectedSuggestionIndex)
+      return
+    }
+
+    // Plain Enter with no suggestions → submit
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
       submit()
       return
@@ -120,10 +133,7 @@ export function ChatComposer({
       return
     }
 
-    if (
-      event.key === "Tab" ||
-      (event.key === "Enter" && !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey)
-    ) {
+    if (event.key === "Tab") {
       event.preventDefault()
       applySuggestion(selectedSuggestionIndex)
       return
@@ -139,7 +149,7 @@ export function ChatComposer({
   const sendLabel = isSlashDraft ? "Run command" : "Send"
 
   return (
-    <div className="rounded-[1.35rem] border border-border/70 bg-card/85 p-3 shadow-2xl shadow-black/5 backdrop-blur">
+    <div className="rounded-xl border border-border/70 bg-card/85 p-2 shadow-2xl shadow-black/5 backdrop-blur">
       <div className="relative">
         <Textarea
           value={draft}
@@ -149,8 +159,8 @@ export function ChatComposer({
           }}
           onKeyDown={onKeyDown}
           disabled={disabled || isStreaming}
-          placeholder="Message Juice, or start with / for Cubicles slash commands like /help or /memory show..."
-          className="min-h-20 max-h-40 resize-none rounded-[1.15rem] border-border/70 bg-background/70 px-3.5 py-2.5 text-sm"
+          placeholder="Message Juice… · Enter to send, ⌘↵ or Alt↵ for new line · / for slash commands"
+          className="min-h-14 max-h-36 resize-none rounded-lg border-border/70 bg-background/70 px-3 py-2 text-xs"
         />
 
         {activeSuggestions.length > 0 ? (
@@ -192,24 +202,26 @@ export function ChatComposer({
         ) : null}
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between gap-3">
+      <div className="mt-1.5 flex items-center justify-between gap-2">
         <Button
           type="button"
           variant="ghost"
-          className="rounded-full text-muted-foreground"
+          size="sm"
+          className="rounded-full text-muted-foreground h-7 px-2 text-xs"
           disabled
         >
-          <Paperclip className="size-4" />
+          <Paperclip className="size-3.5" />
           Attach
         </Button>
         <Button
           type="button"
-          className="rounded-full px-4"
+          size="sm"
+          className="rounded-full h-7 px-3 text-xs"
           onClick={isStreaming ? onStop : submit}
           disabled={disabled || (isStreaming && !onStop)}
         >
           {isStreaming ? "Stop" : sendLabel}
-          <CornerDownLeft className="size-4" />
+          <CornerDownLeft className="size-3.5" />
         </Button>
       </div>
     </div>
