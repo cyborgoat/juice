@@ -1,6 +1,8 @@
 import { CornerDownLeft, Hash, Paperclip, Terminal } from "lucide-react"
 import { type KeyboardEvent, useMemo, useRef, useState } from "react"
 
+const isMac = navigator.userAgent.includes("Mac")
+
 import { Button } from "@/components/ui/button"
 import type { CubiclesSlashCommand, ToolReference } from "@/lib/cubicles-api/types"
 import { cn } from "@/lib/utils"
@@ -89,7 +91,8 @@ export function ChatComposer({
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key === "Enter" && (event.metaKey || event.altKey)) return
+    const isNewlineCombo = isMac ? (event.metaKey || event.altKey) : (event.ctrlKey || event.altKey)
+    if (event.key === "Enter" && isNewlineCombo) return
 
     if (event.key === "Enter" && !event.shiftKey && activeSuggestions.length) {
       event.preventDefault()
@@ -132,7 +135,7 @@ export function ChatComposer({
   const isSlashDraft = draft.trim().startsWith("/")
   const placeholder = isAwaitingApproval
     ? "Type a redirect message to guide the AI instead… · Enter to send"
-    : "Message Juice… · Enter ↵ send · ⌘↵ new line · / commands"
+    : `Message Juice… · Enter ↵ send · ${isMac ? "⌘↵" : "Ctrl↵"} new line · / commands`
   const sendLabel = isAwaitingApproval ? "Redirect" : isSlashDraft ? "Run" : "Send"
 
   return (

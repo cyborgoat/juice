@@ -1,112 +1,43 @@
 # Cubicles integration
 
-## Are we importing `@cubicles/{module}`?
+Juice does **not** import `@cubicles/*`. It integrates with Cubicles in two ways.
 
-No. Juice uses Cubicles in two other ways instead.
+## 1. Process integration
 
-## 1. Build-time and launch-time integration
+At startup, Juice uses Node scripts to build and launch Cubicles:
 
-Juice uses Node scripts to work with your external Cubicles workspace:
+- `scripts/build-cubicles-server.mjs` — reads `JUICE_CUBICLES_ROOT`, runs `npm run build` inside the workspace (always in dev, skipped if bundled runtime is present)
+- `scripts/run-cubicles-server.mjs` — resolves `packages/server/dist/index.js` and calls `startServer({ host, port })`
 
-### `scripts/build-cubicles-server.mjs`
+In packaged builds, `npm run package:runtime` snapshots Cubicles into `src-tauri/resources/cubicles-runtime` so the app is self-contained (except for Node.js itself, which must be installed on the host).
 
-- reads `JUICE_CUBICLES_ROOT`
-- runs `npm run build` inside the Cubicles workspace
-- in development mode, Juice **always** rebuilds to pick up the latest changes
+Backend supervision lives in `src/lib/tauri/cubicles-backend.ts`:
+1. Check health at `http://127.0.0.1:7799/health`
+2. If unhealthy: build → spawn → wait for health
+3. Expose the API base to the frontend
 
-### `scripts/run-cubicles-server.mjs`
+## 2. HTTP/SSE API integration
 
-- resolves `packages/server/dist/index.js` inside the Cubicles workspace
-- dynamically imports that built server entry
-- calls `startServer({ host, port })`
+Once running, Juice talks to Cubicles over its local API. The client is in `src/lib/cubicles-api/client.ts`.
 
-This means Juice uses the **compiled Cubicles server output** at runtime without statically importing `@cubicles/server` or `@cubicles/core` into the Juice source tree.
+| Area | Endpoints |
+|------|-----------|
+| Health / settings | `GET /api/settings` |
+| Sessions | list, create, activate, history, delete |
+| Chat | `POST /api/chat/stream` (SSE), `GET /api/chat/pending/:id` |
+| Approvals | approve, reject, redirect, stop |
+| Slash commands | `GET /api/slash`, `POST /api/slash` |
+| Profiles | list, create, read, update, delete |
+| Workspaces | list, create, update, delete, set default |
+| APIs | list, create, update, delete |
+| Extensions / Skills | list, enable/disable |
+| Harness | get config, update config |
+| Memory | get config |
+| Tool references | `GET /api/tools/references` |
 
-## 2. API integration
+## Why process + API, not direct imports
 
-Once the server is running, Juice talks to Cubicles over its local HTTP/SSE API.
-
-The API client is in `src/lib/cubicles-api/client.ts`. It wraps:
-
-**Core**
-- health
-- settings (read + update)
-
-**Sessions**
-- list, create, activate
-- session history
-- chat streaming (SSE)
-- pending approvals (approve, reject, redirect, stop)
-
-**Slash**
-- `GET /api/slash` — list commands
-- `POST /api/slash` — execute a command
-
-**Profiles**
-- list, create, read detail, update, delete
-
-**Workspaces**
-- list, create, update, delete, set default
-
-**Memory**
-- get config
-
-**APIs**
-- list, list groups, create, update, delete
-
-**Extensions & Skills**
-- list, update enable/default
-
-**Harness**
-- get config, update config
-
-## Backend supervision
-
-`src/lib/tauri/cubicles-backend.ts` bridges the desktop app and Cubicles:
-
-1. checks backend health,
-2. builds Cubicles if needed,
-3. spawns the Cubicles server,
-4. waits for the health endpoint,
-5. exposes the local API base to the frontend.
-
-Local backend target: `http://127.0.0.1:7799`
-
-## UI usage
-
-`src/features/chat/chat-panel.tsx` orchestrates:
-
-- fetch settings, profiles, sessions on mount
-- fetch + render session history on activation
-- create and delete sessions
-- stream new chat replies
-- execute slash commands from the composer
-- restore pending approvals for the active session
-
-`src/features/chat/transcript-helpers.ts` now owns the chat feed normalization layer:
-
-- maps Cubicles history rows into Juice transcript entries
-- reduces live SSE events into the same transcript model
-- converts tool preview / call / approval / result events into stable tool cards
-- preserves live-only entries while history queries rehydrate
-
-`src/components/chat/` then renders that normalized model with dedicated rows for messages, slash events, tool previews, tool cards, turn summaries, and shared shimmer-based working indicators.
-
-Profile selection priority:
-1. `settings.default_profile` if set
-2. first available profile from `GET /api/profiles`
-
-## Why this design was chosen
-
-Juice is loosely coupled to Cubicles:
-
-- Cubicles remains independently buildable and runnable
+- Cubicles stays independently buildable and runnable
 - Juice stays a thin desktop/UI shell
-- Runtime changes in Cubicles mostly stay behind the server API boundary
-- The same backend can be tested independently of the UI
-
-Tradeoff: Juice depends on the external Cubicles workspace path and local process startup.
-
-## If you want direct package imports later
-
-A future version could import Cubicles packages directly by turning `juice` into a workspace consumer of `@cubicles/core`, `@cubicles/server`, etc. That would require workspace linking, shared build orchestration, and careful bundling boundaries between Tauri, Node-only server code, and browser code. For now, the process-and-API boundary is the active architecture.
+- Runtime changes in Cubicles stay behind the API boundary
+- The backend can be tested independently of the UI

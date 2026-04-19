@@ -1,0 +1,46 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default-windows",
+  "description": "enables the default permissions (Windows)",
+  "windows": [
+    "main"
+  ],
+  "platforms": ["windows"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "build-cubicles-server",
+          "cmd": "cmd.exe",
+          "args": ["/c", "node \"%JUICE_SCRIPT_ROOT%\\build-cubicles-server.mjs\""]
+        },
+        {
+          "name": "run-cubicles-server",
+          "cmd": "cmd.exe",
+          "args": ["/c", "node \"%JUICE_SCRIPT_ROOT%\\run-cubicles-server.mjs\""]
+        }
+      ]
+    },
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "build-cubicles-server",
+          "cmd": "cmd.exe",
+          "args": ["/c", "node \"%JUICE_SCRIPT_ROOT%\\build-cubicles-server.mjs\""]
+        },
+        {
+          "name": "run-cubicles-server",
+          "cmd": "cmd.exe",
+          "args": ["/c", "node \"%JUICE_SCRIPT_ROOT%\\run-cubicles-server.mjs\""]
+        }
+      ]
+    },
+    "shell:allow-kill",
+    "fs:allow-write-text-file",
+    "fs:allow-exists",
+    "fs:scope-download-recursive"
+  ]
+}
