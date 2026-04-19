@@ -858,7 +858,21 @@ export function ChatPanel() {
     }
   }
 
+  const awaitingApprovalEntry = useMemo(
+    () =>
+      activeEntries.find(
+        (e) => e.type === "tool" && (e as Extract<typeof e, { type: "tool" }>).status === "awaiting-approval"
+      ) as Extract<(typeof activeEntries)[number], { type: "tool" }> | undefined,
+    [activeEntries]
+  )
+
   async function handleComposerSubmit(value: string) {
+    // If there's a pending approval, treat the message as a redirect
+    if (awaitingApprovalEntry?.approvalId) {
+      await handleApprovalAction(awaitingApprovalEntry.approvalId, { redirectMessage: value })
+      return
+    }
+
     if (value.startsWith("/")) {
       await handleRunSlashCommand(value)
       return
@@ -1191,9 +1205,7 @@ export function ChatPanel() {
                       onRejectApproval={(approvalId) => {
                         void handleApprovalAction(approvalId, { approved: false })
                       }}
-                      onRedirectApproval={(approvalId, message) => {
-                        void handleApprovalAction(approvalId, { redirectMessage: message })
-                      }}
+                      onStop={() => void handleStopStreaming()}
                     />
                   </div>
                 </div>
@@ -1208,7 +1220,8 @@ export function ChatPanel() {
                         void handleStopStreaming()
                       }}
                       disabled={backendState.mode === "error"}
-                      isStreaming={isStreaming}
+                      isStreaming={isStreaming && !awaitingApprovalEntry}
+                      isAwaitingApproval={Boolean(awaitingApprovalEntry?.approvalId)}
                       slashCommands={slashCommandsQuery.data?.commands ?? []}
                       profileNames={profilesQuery.data?.map((profile) => profile.name) ?? []}
                       sessions={visibleSessions.map((session) => ({

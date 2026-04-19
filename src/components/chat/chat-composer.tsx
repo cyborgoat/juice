@@ -11,6 +11,7 @@ type ChatComposerProps = {
   onStop?: () => void
   disabled?: boolean
   isStreaming?: boolean
+  isAwaitingApproval?: boolean
   slashCommands?: CubiclesSlashCommand[]
   profileNames?: string[]
   sessions?: Array<{
@@ -25,6 +26,7 @@ export function ChatComposer({
   onStop,
   disabled = false,
   isStreaming = false,
+  isAwaitingApproval = false,
   slashCommands = [],
   profileNames = [],
   sessions = [],
@@ -128,7 +130,10 @@ export function ChatComposer({
   }
 
   const isSlashDraft = draft.trim().startsWith("/")
-  const sendLabel = isSlashDraft ? "Run" : "Send"
+  const placeholder = isAwaitingApproval
+    ? "Type a redirect message to guide the AI instead… · Enter to send"
+    : "Message Juice… · Enter ↵ send · ⌘↵ new line · / commands"
+  const sendLabel = isAwaitingApproval ? "Redirect" : isSlashDraft ? "Run" : "Send"
 
   return (
     <div className="relative">
@@ -172,7 +177,12 @@ export function ChatComposer({
 
       {/* Single rounded container — buttons live inside at bottom corners */}
       <div
-        className="flex flex-col rounded-2xl border border-border/70 bg-card/85 shadow-lg shadow-black/5 backdrop-blur focus-within:border-border/90 transition-colors"
+        className={cn(
+          "flex flex-col rounded-2xl border bg-card/85 shadow-lg shadow-black/5 backdrop-blur transition-colors",
+          isAwaitingApproval
+            ? "border-amber-500/40 focus-within:border-amber-500/70"
+            : "border-border/70 focus-within:border-border/90"
+        )}
         onClick={() => textareaRef.current?.focus()}
       >
         <textarea
@@ -184,7 +194,7 @@ export function ChatComposer({
           }}
           onKeyDown={onKeyDown}
           disabled={disabled || isStreaming}
-          placeholder={"Message Juice… · Enter ↵ send · ⌘↵ new line · / commands"}
+          placeholder={placeholder}
           rows={2}
           className="min-h-[3rem] max-h-36 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-xs outline-none placeholder:text-muted-foreground/50 disabled:opacity-50"
         />

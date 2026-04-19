@@ -19,7 +19,7 @@ type ChatTranscriptProps = {
   advancedMode?: boolean
   onApproveApproval?: (approvalId: string) => void
   onRejectApproval?: (approvalId: string) => void
-  onRedirectApproval?: (approvalId: string, message: string) => void
+  onStop?: () => void
   approvalBusy?: boolean
 }
 
@@ -31,18 +31,10 @@ export function ChatTranscript({
   advancedMode = false,
   onApproveApproval,
   onRejectApproval,
-  onRedirectApproval,
+  onStop,
   approvalBusy = false,
 }: ChatTranscriptProps) {
-  const [redirectDrafts, setRedirectDrafts] = useState<Record<string, string>>({})
   const [openPreviewId, setOpenPreviewId] = useState<string | null>(null)
-
-  function updateRedirectDraft(entryId: string, value: string) {
-    setRedirectDrafts((currentDrafts) => ({
-      ...currentDrafts,
-      [entryId]: value,
-    }))
-  }
 
   return (
     <div className="flex min-w-0 w-full flex-col space-y-1.5 px-2 py-1.5 md:px-3 md:py-2">
@@ -85,15 +77,10 @@ export function ChatTranscript({
               <ChatToolCard
                 key={entry.id}
                 entry={entry}
-                redirectValue={redirectDrafts[entry.id] ?? ""}
                 approvalBusy={approvalBusy}
-                onRedirectValueChange={(value) => updateRedirectDraft(entry.id, value)}
                 onApproveApproval={onApproveApproval}
                 onRejectApproval={onRejectApproval}
-                onRedirectApproval={(approvalId, message) => {
-                  onRedirectApproval?.(approvalId, message)
-                  updateRedirectDraft(entry.id, "")
-                }}
+                onStop={onStop}
               />
             )
           }

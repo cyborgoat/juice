@@ -1,10 +1,9 @@
-import { CheckCircle2, ChevronRight, LoaderCircle, ShieldCheck } from "lucide-react"
+import { CheckCircle2, ChevronRight, LoaderCircle, ShieldCheck, Square } from "lucide-react"
 import { useState } from "react"
 
 import { CopyButton } from "@/components/chat/code-block"
 import { ChatDetailDialog } from "@/components/chat/chat-detail-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { TextShimmer } from "@/components/ui/text-shimmer"
 import { formatToolCategory } from "@/features/chat/transcript-helpers"
 import type { TranscriptEntry } from "@/lib/types"
@@ -13,22 +12,18 @@ type ToolEntry = Extract<TranscriptEntry, { type: "tool" }>
 
 type ChatToolCardProps = {
   entry: ToolEntry
-  redirectValue: string
   approvalBusy?: boolean
-  onRedirectValueChange: (value: string) => void
   onApproveApproval?: (approvalId: string) => void
   onRejectApproval?: (approvalId: string) => void
-  onRedirectApproval?: (approvalId: string, message: string) => void
+  onStop?: () => void
 }
 
 export function ChatToolCard({
   entry,
-  redirectValue,
   approvalBusy = false,
-  onRedirectValueChange,
   onApproveApproval,
   onRejectApproval,
-  onRedirectApproval,
+  onStop,
 }: ChatToolCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -37,17 +32,6 @@ export function ChatToolCard({
   const isCompleted = entry.status === "completed"
   const showOutput = isCompleted && entry.output && entry.output !== "Tool execution was skipped."
   const showArguments = Boolean(entry.argumentsText?.trim())
-
-  function submitRedirect() {
-    if (!entry.approvalId || !onRedirectApproval) {
-      return
-    }
-    const message = redirectValue.trim()
-    if (!message) {
-      return
-    }
-    onRedirectApproval(entry.approvalId, message)
-  }
 
   return (
     <>
@@ -100,48 +84,44 @@ export function ChatToolCard({
                 {entry.argumentsText}
               </pre>
             </details>
-            {entry.approvalId && (onApproveApproval || onRejectApproval || onRedirectApproval) ? (
-              <div className="mx-2.5 mb-2 rounded-lg border border-border/70 bg-background/70 p-2">
-                <div className="mb-1.5 flex flex-wrap gap-1.5">
+
+            {entry.approvalId && (onApproveApproval || onRejectApproval) ? (
+              <div className="mx-2.5 mb-2 flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full h-7 px-3 text-xs"
+                  disabled={approvalBusy}
+                  onClick={() => onApproveApproval?.(entry.approvalId!)}
+                >
+                  Approve
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full h-7 px-3 text-xs"
+                  disabled={approvalBusy}
+                  onClick={() => onRejectApproval?.(entry.approvalId!)}
+                >
+                  Reject
+                </Button>
+                {onStop && (
                   <Button
                     type="button"
                     size="sm"
-                    className="rounded-full"
+                    variant="ghost"
+                    className="rounded-full h-7 px-3 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
                     disabled={approvalBusy}
-                    onClick={() => onApproveApproval?.(entry.approvalId!)}
+                    onClick={onStop}
                   >
-                    Approve
+                    <Square className="size-3" />
+                    Stop
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="rounded-full"
-                    disabled={approvalBusy}
-                    onClick={() => onRejectApproval?.(entry.approvalId!)}
-                  >
-                    Reject
-                  </Button>
-                </div>
-                <div className="flex flex-col gap-2 md:flex-row">
-                  <Input
-                    value={redirectValue}
-                    onChange={(event) => onRedirectValueChange(event.target.value)}
-                    placeholder="Redirect with a note…"
-                    disabled={approvalBusy}
-                    className="h-7 rounded-lg text-xs"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    className="rounded-full md:self-center"
-                    disabled={approvalBusy || !redirectValue.trim()}
-                    onClick={submitRedirect}
-                  >
-                    Redirect
-                  </Button>
-                </div>
+                )}
+                <span className="ml-auto text-[10px] text-muted-foreground/60">
+                  or type below to redirect
+                </span>
               </div>
             ) : null}
           </div>
