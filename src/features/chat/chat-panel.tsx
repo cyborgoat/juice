@@ -39,17 +39,17 @@ import { cn } from "@/lib/utils"
 import {
   appendEntry,
   buildAssistantFallbackResponse,
-  buildAssistantStreamEntryId,
   buildBackendInfo,
   buildLiveSessionPlaceholder,
   buildSessionTitle,
   buildSystemEntry,
-  buildToolEntry,
-  buildToolPreviewEntryId,
+  buildVisibleSessions,
   mapHistoryToTranscript,
-  removeEntry,
+  replaceTranscriptFromHistory,
+  reduceStreamEvent,
+  resolvePreferredSessionId,
   setToolEntryByApprovalId,
-  upsertEntry,
+  syncPendingApprovalEntry,
 } from "./transcript-helpers"
 
 function HeaderMetaChip({ label, value }: { label: string; value: string }) {
@@ -96,6 +96,8 @@ export function ChatPanel() {
   const activeStreamAbortRef = useRef<AbortController | null>(null)
   const activeStreamSessionIdRef = useRef<string | null>(null)
   const transcriptScrollRef = useRef<HTMLDivElement | null>(null)
+  /** Sessions that just finished streaming — skip history hydration to prevent flash. */
+  const freshlyStreamedRef = useRef<Set<string>>(new Set())
 
   function toggleAdvancedMode() {
     setAdvancedMode((prev) => {
@@ -161,22 +163,10 @@ export function ChatPanel() {
     [sessionsQuery.data]
   )
 
-  const visibleSessions = useMemo(() => {
-    if (backendState.mode !== "ready") {
-      return localSessions
-    }
-
-    return (sessionsQuery.data ?? []).map<SessionSummary>((session) => ({
-      id: session.id,
-      title: session.name,
-      workspace: session.workspace_name,
-      preview: session.is_active
-        ? "Active Cubicles session"
-        : "Synced from the local Cubicles server.",
-      updatedAtLabel: new Date(session.updated_at).toLocaleString(),
-      status: session.is_active ? "live" : "ready",
-    }))
-  }, [backendState.mode, localSessions, sessionsQuery.data])
+  const visibleSessions = useMemo<SessionSummary[]>(
+    () => buildVisibleSessions(backendState, localSessions, sessionsQuery.data, undefined),
+    [backendState, localSessions, sessionsQuery.data]
+  )
 
   const activeSession = useMemo(
     () =>
@@ -240,6 +230,18 @@ export function ChatPanel() {
     refetchInterval: 10_000,
   })
 
+  const sidebarSessions = useMemo<SessionSummary[]>(
+    () =>
+      visibleSessions.map((session) => ({
+        ...session,
+        hasPendingApproval:
+          !pendingApprovalQuery.isFetching &&
+          pendingApprovalQuery.data?.approvalId != null &&
+          pendingApprovalQuery.data.sessionId === session.id,
+      })),
+    [pendingApprovalQuery.data, pendingApprovalQuery.isFetching, visibleSessions]
+  )
+
   const fallbackHistoryEntries = useMemo(
     () => mapHistoryToTranscript(sessionHistoryQuery.data),
     [sessionHistoryQuery.data]
@@ -294,17 +296,15 @@ export function ChatPanel() {
       return
     }
 
-    if (selectedSessionId && remoteSessions.some((session) => session.id === selectedSessionId)) {
-      return
+    const preferredSessionId = resolvePreferredSessionId(
+      selectedSessionId,
+      remoteSessions,
+      settingsQuery.data?.active_session_id
+    )
+
+    if (preferredSessionId !== selectedSessionId) {
+      setSelectedSessionId(preferredSessionId)
     }
-
-    const preferredSessionId =
-      settingsQuery.data?.active_session_id ??
-      remoteSessions.find((session) => session.is_active)?.id ??
-      remoteSessions[0]?.id ??
-      ""
-
-    setSelectedSessionId(preferredSessionId)
   }, [backendState.mode, selectedSessionId, sessionsQuery.data, settingsQuery.data?.active_session_id])
 
   useEffect(() => {
@@ -317,19 +317,17 @@ export function ChatPanel() {
       return
     }
 
+    const sid = activeSession.id
+    const skipIfFresh = freshlyStreamedRef.current.has(sid)
     const mappedHistory = mapHistoryToTranscript(sessionHistoryQuery.data)
-    if (!mappedHistory) {
-      setTranscripts((previousTranscripts) => ({
-        ...previousTranscripts,
-        [activeSession.id]: [],
-      }))
-      return
+    setTranscripts((previousTranscripts) =>
+      replaceTranscriptFromHistory(previousTranscripts, sid, mappedHistory, skipIfFresh)
+    )
+    // After one hydration cycle with the guard, clear the flag so future
+    // hydrations (e.g. after user switches away and back) work normally.
+    if (skipIfFresh) {
+      freshlyStreamedRef.current.delete(sid)
     }
-
-    setTranscripts((previousTranscripts) => ({
-      ...previousTranscripts,
-      [activeSession.id]: mappedHistory,
-    }))
     // NOTE: isStreaming is intentionally excluded from deps. Including it causes a flash:
     // when streaming ends, this effect would fire with stale query data before the
     // invalidation has re-fetched fresh history. The guard above is a safety net for
@@ -338,27 +336,18 @@ export function ChatPanel() {
   }, [activeSession?.id, backendState.mode, remoteSessionIds, sessionHistoryQuery.data])
 
   useEffect(() => {
-    if (!activeSession?.id || !pendingApprovalQuery.data) {
+    if (!activeSession?.id || isStreaming || pendingApprovalQuery.isFetching) {
       return
     }
 
-    const pending = pendingApprovalQuery.data
-    const toolName = String(pending.pendingTool.name ?? "tool")
-    const entryId = `tool-${activeSession.id}-pending-${toolName}`
-
     setTranscripts((previousTranscripts) =>
-      upsertEntry(previousTranscripts, activeSession.id, entryId, () => ({
-        id: entryId,
-        type: "tool",
-        name: toolName,
-        status: "awaiting-approval",
-        detail: "Waiting for user approval before execution.",
-        output: JSON.stringify(pending.pendingTool, null, 2),
-        timestamp: "Now",
-        approvalId: pending.approvalId,
-      }))
+      syncPendingApprovalEntry(
+        previousTranscripts,
+        activeSession.id,
+        pendingApprovalQuery.data ?? null
+      )
     )
-  }, [activeSession?.id, pendingApprovalQuery.data])
+  }, [activeSession?.id, isStreaming, pendingApprovalQuery.data, pendingApprovalQuery.isFetching])
 
   async function handleCreateSession() {
     setActiveView("chat")
@@ -509,198 +498,90 @@ export function ChatPanel() {
     ])
   }
 
-  function appendAssistantStreamContent(
-    previousTranscripts: Record<string, TranscriptEntry[]>,
-    sessionId: string,
-    streamId: string,
-    content: string
-  ) {
-    const entryId = buildAssistantStreamEntryId(sessionId, streamId)
-
-    return upsertEntry(previousTranscripts, sessionId, entryId, (currentEntry) => ({
-      id: entryId,
-      type: "message",
-      role: "assistant",
-      timestamp: "Now",
-      content:
-        currentEntry?.type === "message"
-          ? `${currentEntry.content}${content}`
-          : content,
-    }))
-  }
-
-  function closeThinkingBlock(
-    previousTranscripts: Record<string, TranscriptEntry[]>,
-    sessionId: string,
-    streamId: string
-  ) {
-    const streamState = liveStreamStateRef.current[streamId]
-    if (!streamState?.thinkingOpen) {
-      return previousTranscripts
+  function applyChatEvent(sessionId: string, streamId: string, event: CubiclesChatEvent) {
+    if (event.type === "session_context") {
+      logger.info("Received session context", { sessionId: event.sessionId, streamId })
+    } else if (
+      event.type === "tool_call" ||
+      event.type === "tool_running" ||
+      event.type === "awaiting_approval" ||
+      event.type === "tool_result" ||
+      event.type === "tool_skipped"
+    ) {
+      logger.info("Received tool event", {
+        sessionId,
+        streamId,
+        eventType: event.type,
+        toolName:
+          "name" in event
+            ? event.name
+            : "tool" in event
+              ? String(event.tool.name ?? "tool")
+              : String(event.pendingTool.name ?? "tool"),
+      })
+    } else if (event.type === "approval_applied") {
+      logger.info("Approval applied", {
+        sessionId,
+        approvalId: event.approvalId,
+        approved: event.approved,
+      })
+    } else if (event.type === "assistant_delta") {
+      logger.info("Assistant delta received", {
+        sessionId,
+        streamId,
+        length: event.delta.length,
+      })
+    } else if (event.type === "turn_summary") {
+      logger.info("Turn summary", {
+        sessionId,
+        steps: event.steps,
+        toolsCalled: event.toolsCalled,
+        tokensUsed: event.tokensUsed,
+      })
+    } else if (event.type === "error") {
+      logger.error("Chat stream emitted error", {
+        sessionId,
+        streamId,
+        message: event.message,
+      })
+    } else if (event.type === "done") {
+      logger.info("Chat stream completed", { sessionId, streamId })
     }
 
-    streamState.thinkingOpen = false
-    return appendAssistantStreamContent(previousTranscripts, sessionId, streamId, "</think>")
-  }
+    let nextSelection: string | undefined
+    let nextWorkingLabel: string | null | undefined
+    let nextLiveUsage:
+      | { total?: number; contextUsedTokens?: number; promptBudget?: number }
+      | null
+      | undefined
+    let shouldClearStreamState = false
 
-  function applyChatEvent(sessionId: string, streamId: string, event: CubiclesChatEvent) {
-    switch (event.type) {
-      case "session_context": {
-        logger.info("Received session context", { sessionId: event.sessionId, streamId })
-        setSelectedSessionId(event.sessionId)
-        return
-      }
-      case "assistant_delta": {
-        setShowWorkingIndicator(false)
-        setTranscripts((previousTranscripts) =>
-          appendAssistantStreamContent(
-            closeThinkingBlock(previousTranscripts, sessionId, streamId),
-            sessionId,
-            streamId,
-            event.delta
-          )
-        )
-        return
-      }
-      case "thinking_delta": {
-        const streamState = liveStreamStateRef.current[streamId] ?? { thinkingOpen: false }
-        liveStreamStateRef.current[streamId] = streamState
+    setTranscripts((previousTranscripts) => {
+      const reduction = reduceStreamEvent(
+        previousTranscripts,
+        sessionId,
+        streamId,
+        event,
+        liveStreamStateRef.current
+      )
+      nextSelection = reduction.selectedSessionId
+      nextWorkingLabel = reduction.workingLabel
+      nextLiveUsage = reduction.liveUsage
+      shouldClearStreamState = reduction.clearStreamState === true
+      return reduction.transcripts
+    })
 
-        setTranscripts((previousTranscripts) => {
-          let nextTranscripts = previousTranscripts
-
-          if (!streamState.thinkingOpen) {
-            streamState.thinkingOpen = true
-            nextTranscripts = appendAssistantStreamContent(
-              nextTranscripts,
-              sessionId,
-              streamId,
-              "<think>"
-            )
-          }
-
-          return appendAssistantStreamContent(nextTranscripts, sessionId, streamId, event.delta)
-        })
-        return
-      }
-      case "tool_preview": {
-        const entryId = buildToolPreviewEntryId(sessionId, streamId)
-        setShowWorkingIndicator(false)
-        setTranscripts((previousTranscripts) =>
-          upsertEntry(previousTranscripts, sessionId, entryId, () => ({
-            id: entryId,
-            type: "tool-preview",
-            timestamp: "Now",
-            content: event.content,
-          }))
-        )
-        return
-      }
-      case "tool_call":
-      case "tool_running":
-      case "awaiting_approval":
-      case "tool_result":
-      case "tool_skipped": {
-        const entry = buildToolEntry(event, sessionId, streamId)
-        logger.info("Received tool event", { sessionId, streamId, eventType: event.type, toolName: entry.name })
-        // After tool completion the agent loop immediately resumes — show the
-        // working indicator so the user knows the LLM is still processing the
-        // result. Approval pauses the loop so leave the indicator off there.
-        const resumesLoop = event.type === "tool_result" || event.type === "tool_skipped"
-        setShowWorkingIndicator(resumesLoop ? "Analysing result…" : false)
-        setTranscripts((prev) =>
-          upsertEntry(
-            removeEntry(prev, sessionId, buildToolPreviewEntryId(sessionId, streamId)),
-            sessionId,
-            entry.id,
-            () => entry,
-          )
-        )
-        return
-      }
-      case "approval_applied": {
-        logger.info("Approval applied", {
-          sessionId,
-          approvalId: event.approvalId,
-          approved: event.approved,
-        })
-        setTranscripts((previousTranscripts) =>
-          setToolEntryByApprovalId(previousTranscripts, sessionId, event.approvalId, (entry) => ({
-            ...entry,
-            status: event.approved ? "running" : "completed",
-            detail: event.approved
-              ? "Approval granted. Resuming tool execution."
-              : "Approval rejected. Tool execution was skipped.",
-          }))
-        )
-        return
-      }
-      case "usage": {
-        setLiveUsage(event.usage as { total?: number; contextUsedTokens?: number; promptBudget?: number })
-        return
-      }
-      case "compressing": {
-        const entryId = `compressing-${sessionId}-${streamId}`
-        setTranscripts((prev) =>
-          upsertEntry(prev, sessionId, entryId, () => ({
-            id: entryId,
-            type: "system",
-            label: "Context",
-            timestamp: "Now",
-            content: "Compressing context to stay within token budget…",
-          }))
-        )
-        return
-      }
-      case "turn_summary": {
-        const entryId = `turn-summary-${sessionId}-${streamId}`
-        setTranscripts((prev) =>
-          upsertEntry(prev, sessionId, entryId, () => ({
-            id: entryId,
-            type: "turn-summary" as const,
-            steps: event.steps,
-            toolsCalled: event.toolsCalled,
-            tokensUsed: event.tokensUsed,
-            errorCount: event.errorCount,
-            timestamp: "Now",
-          }))
-        )
-        return
-      }
-      case "error": {
-        logger.error("Chat stream emitted error", {
-          sessionId,
-          streamId,
-          message: event.message,
-        })
-        setShowWorkingIndicator(false)
-        setTranscripts((previousTranscripts) =>
-          removeEntry(
-            closeThinkingBlock(previousTranscripts, sessionId, streamId),
-            sessionId,
-            buildToolPreviewEntryId(sessionId, streamId)
-          )
-        )
-        setTranscripts((prev) =>
-          appendEntry(prev, sessionId, buildSystemEntry("Error", event.message))
-        )
-        delete liveStreamStateRef.current[streamId]
-        return
-      }
-      case "done": {
-        logger.info("Chat stream completed", { sessionId, streamId })
-        setShowWorkingIndicator(false)
-        setLiveUsage(null)
-        setTranscripts((previousTranscripts) =>
-          removeEntry(
-            closeThinkingBlock(previousTranscripts, sessionId, streamId),
-            sessionId,
-            buildToolPreviewEntryId(sessionId, streamId)
-          )
-        )
-        delete liveStreamStateRef.current[streamId]
-        return
-      }
+    if (nextSelection) {
+      setSelectedSessionId(nextSelection)
+    }
+    if (nextWorkingLabel !== undefined) {
+      setShowWorkingIndicator(nextWorkingLabel ?? false)
+    }
+    if (nextLiveUsage !== undefined) {
+      setLiveUsage(nextLiveUsage)
+    }
+    if (shouldClearStreamState) {
+      delete liveStreamStateRef.current[streamId]
     }
   }
 
@@ -731,12 +612,10 @@ export function ChatPanel() {
       }
 
       logger.error("Chat stream request failed", { sessionId, streamId, error })
-      setShowWorkingIndicator(false)
-      setTranscripts((prev) => closeThinkingBlock(prev, sessionId, streamId))
-      delete liveStreamStateRef.current[streamId]
-      setTranscripts((prev) =>
-        appendEntry(prev, sessionId, buildSystemEntry("Error", error instanceof Error ? error.message : String(error)))
-      )
+      applyChatEvent(sessionId, streamId, {
+        type: "error",
+        message: error instanceof Error ? error.message : String(error),
+      })
       activeStreamAbortRef.current = null
     }
     if (activeStreamSessionIdRef.current === sessionId) {
@@ -830,6 +709,7 @@ export function ChatPanel() {
         profile_name: profileName,
       })
     } finally {
+      freshlyStreamedRef.current.add(sessionId)
       setIsStreaming(false)
       setShowWorkingIndicator(false)
       await invalidateSessionData(sessionId)
@@ -904,6 +784,7 @@ export function ChatPanel() {
         appendEntry(prev, sessionId, buildSystemEntry("Error", error instanceof Error ? error.message : String(error)))
       )
     } finally {
+      freshlyStreamedRef.current.add(targetSessionId)
       setIsStreaming(false)
       setShowWorkingIndicator(false)
       await invalidateSessionData(targetSessionId)
@@ -939,16 +820,20 @@ export function ChatPanel() {
       setTranscripts((prev) =>
         appendEntry(prev, sessionId, buildSystemEntry("Approval redirect", redirectMessage))
       )
-      setTranscripts((prev) =>
-        setToolEntryByApprovalId(prev, sessionId, approvalId, (entry) => ({
-          ...entry,
-          status: "completed",
-          detail: "Redirected with user guidance instead of running the tool.",
-        }))
-      )
-    }
+        setTranscripts((prev) =>
+          setToolEntryByApprovalId(prev, sessionId, approvalId, (entry) => ({
+            ...entry,
+            status: "completed",
+            statusMessage: "Redirected with user guidance instead of running the tool.",
+            detail: "Redirected with user guidance instead of running the tool.",
+            output: decision.redirectMessage,
+            returnCode: 0,
+          }))
+        )
+      }
 
     setIsStreaming(true)
+    queryClient.setQueryData(["cubicles", "pending-approval", sessionId], null)
     logger.info("Applying approval decision", {
       sessionId,
       approvalId,
@@ -965,6 +850,7 @@ export function ChatPanel() {
         redirect_message: decision.redirectMessage ?? null,
       })
     } finally {
+      freshlyStreamedRef.current.add(sessionId)
       setIsStreaming(false)
       setShowWorkingIndicator(false)
       await invalidateSessionData(sessionId)
@@ -1067,7 +953,7 @@ export function ChatPanel() {
 
       <SidebarProvider open={isSidebarOpen} onOpenChange={setIsSidebarOpen} className="h-full overflow-hidden">
           <SessionSidebar
-            sessions={visibleSessions}
+            sessions={sidebarSessions}
             selectedSessionId={activeSession?.id ?? ""}
             currentView={activeView}
             isMutatingSession={isMutatingSession}

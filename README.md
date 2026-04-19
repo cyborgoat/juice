@@ -11,7 +11,9 @@ Juice is a slim, modern desktop UI layer around Cubicles.
 - Renders assistant markdown with syntax-highlighted code blocks (Shiki)
 - Renders collapsible thinking sections from live `<think>` blocks and persisted history
 - Renders slash command / result pairs inline in the transcript
-- Inline approve / reject / redirect controls for pending tool approvals
+- Renders tool preview cards before execution, with a dialog to inspect the generated command/content
+- Renders durable tool cards with status-first summaries, inline approve / reject / redirect controls, expandable args/output, and detail dialogs for deeper inspection
+- Uses shared text-shimmer working states for "Generating tool call…", tool execution, and post-tool analysis so the agent never looks frozen mid-loop
 - Slash command autocomplete popup above the composer (keyboard-navigable)
 - **@ reference autocomplete** — type `@` to surface available tools, skills, and APIs for use in your message
 - Copy transcript as Markdown to clipboard (header button or ⌘K command palette)
@@ -25,7 +27,9 @@ Juice is a slim, modern desktop UI layer around Cubicles.
 **Sessions**
 - Lists, creates, activates, and deletes Cubicles sessions from the sidebar
 - Sidebar search/filter by title, workspace, or preview text
+- Shows pending-approval state directly in the session list
 - Rehydrates full persisted session history on activation
+- Preserves live-only stream artifacts like tool previews and unfinished tool cards while history queries refresh
 - Handles `turn_summary`, `usage`, and `compressing` events from the Cubicles stream
 
 **Settings** — multi-tab dialog with compact, dialog-based create/edit forms:

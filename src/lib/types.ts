@@ -5,6 +5,7 @@ export type SessionSummary = {
   preview: string
   updatedAtLabel: string
   status: "live" | "ready" | "idle"
+  hasPendingApproval?: boolean
 }
 
 type MessageEntry = {
@@ -15,13 +16,29 @@ type MessageEntry = {
   timestamp: string
 }
 
+export type ToolCategory =
+  | "command"
+  | "script"
+  | "file"
+  | "memory"
+  | "session"
+  | "reference"
+  | "tool"
+
+export type ToolStatus = "running" | "awaiting-approval" | "completed"
+
 type ToolEntry = {
   id: string
   type: "tool"
   name: string
-  status: "running" | "awaiting-approval" | "completed"
+  category: ToolCategory
+  status: ToolStatus
+  commandText: string
+  statusMessage: string
   detail: string
-  output: string
+  argumentsText?: string
+  output?: string
+  returnCode?: number
   timestamp: string
   approvalId?: string
   step?: number
@@ -32,6 +49,7 @@ type ToolPreviewEntry = {
   id: string
   type: "tool-preview"
   content: string
+  commandText: string
   timestamp: string
 }
 

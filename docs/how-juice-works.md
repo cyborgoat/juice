@@ -32,7 +32,7 @@ Relevant files:
 - Layout uses a flat flex structure inside `SidebarInset`: `header` → scrollable transcript (`flex-1 overflow-y-auto`) → composer (`shrink-0`). This prevents rerender-induced width/height collapse.
 - The composer shows slash-command autocomplete in a compact popup **above** the text area.
 - Slash command/result pairs are kept inline in the transcript.
-- The session sidebar supports create, select, search/filter, and delete flows.
+- The session sidebar supports create, select, search/filter, delete, and approval-state visibility flows.
 - Session deletion goes through the shared slash dispatcher (`/sessions delete <id>`) so Juice follows the backend-selected active session after a delete.
 - Transcript can be copied as Markdown to the clipboard via the header button or command palette (⌘K).
 
@@ -45,8 +45,20 @@ The transcript renders:
 - collapsible thinking sections — from live `<think>...</think>` blocks and from persisted `thinking` history rows
 - `compressing` stream events (shown as system entries)
 - `turn_summary` stream events — stored as `turn-summary` entries; shown as compact pill cards (steps · tools · tokens · errors) only in **Advanced Mode**
-- tool cards with step indicators, collapsible arguments (awaiting approval) and collapsible output (completed)
+- tool preview cards while a tool call is still being generated, with a dialog for the raw preview content
+- tool cards with step indicators, compact status headers, collapsible arguments (awaiting approval), collapsible output (completed), and a shared detail dialog for command/args/output inspection
 - inline approval controls (approve, reject, redirect with note)
+- shimmer-based working indicators for tool generation, tool execution, and post-tool analysis
+
+### Transcript architecture
+
+The chat surface is split into three layers:
+
+1. `chat-panel.tsx` handles orchestration: backend startup, queries, streaming, approval actions, and session mutations.
+2. `transcript-helpers.ts` normalizes Cubicles history + SSE events into stable transcript entries and preserves live-only items during history refreshes.
+3. `src/components/chat/` renders specialized rows (`message`, `slash`, `tool-preview`, `tool`, `turn-summary`, `working`) so transcript presentation stays small and focused.
+
+This keeps the stream reducer and transcript shaping out of the panel, which makes session behavior easier to reason about and tool UX easier to extend.
 
 ### Advanced Mode
 
@@ -156,4 +168,3 @@ That is intentional.
 Juice treats Cubicles as an **external runtime service**. That keeps the desktop app focused on windowing, local process supervision, UI state, API transport, and transcript rendering.
 
 Cubicles handles session persistence, profiles, workspace resolution, tool execution, approval state, slash-command dispatch, and model/provider calls.
-

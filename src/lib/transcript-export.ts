@@ -30,17 +30,26 @@ export function transcriptToMarkdown(entries: TranscriptEntry[], sessionTitle?: 
         lines.push(
           `#### Tool: ${entry.name} (${entry.status})`,
           "",
-          entry.detail,
+          entry.statusMessage,
           "",
-          "```",
-          entry.output,
-          "```",
-          "",
+        )
+        if (entry.argumentsText) {
+          lines.push("```json", entry.argumentsText, "```", "")
+        }
+        if (entry.output) {
+          lines.push("```", entry.output, "```", "")
+        }
+        break
+
+      case "turn-summary":
+        lines.push(
+          `> Turn summary: ${entry.steps} step(s), ${entry.toolsCalled} tool(s), ${entry.tokensUsed} tokens, ${entry.errorCount} error(s)`,
+          ""
         )
         break
 
       case "tool-preview":
-        lines.push("#### Tool preview", "", "```", entry.content, "```", "")
+        lines.push(`#### Tool preview`, "", "```", entry.content, "```", "")
         break
 
       case "system":

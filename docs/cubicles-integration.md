@@ -83,6 +83,15 @@ Local backend target: `http://127.0.0.1:7799`
 - execute slash commands from the composer
 - restore pending approvals for the active session
 
+`src/features/chat/transcript-helpers.ts` now owns the chat feed normalization layer:
+
+- maps Cubicles history rows into Juice transcript entries
+- reduces live SSE events into the same transcript model
+- converts tool preview / call / approval / result events into stable tool cards
+- preserves live-only entries while history queries rehydrate
+
+`src/components/chat/` then renders that normalized model with dedicated rows for messages, slash events, tool previews, tool cards, turn summaries, and shared shimmer-based working indicators.
+
 Profile selection priority:
 1. `settings.default_profile` if set
 2. first available profile from `GET /api/profiles`
@@ -101,4 +110,3 @@ Tradeoff: Juice depends on the external Cubicles workspace path and local proces
 ## If you want direct package imports later
 
 A future version could import Cubicles packages directly by turning `juice` into a workspace consumer of `@cubicles/core`, `@cubicles/server`, etc. That would require workspace linking, shared build orchestration, and careful bundling boundaries between Tauri, Node-only server code, and browser code. For now, the process-and-API boundary is the active architecture.
-

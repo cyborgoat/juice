@@ -135,6 +135,11 @@ export function SessionSidebar({
                     <span className="min-w-0 flex-1 truncate text-sm font-medium">
                       {session.title}
                     </span>
+                    {session.hasPendingApproval ? (
+                      <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                        approval
+                      </span>
+                    ) : null}
                   </SidebarMenuButton>
 
                   {onDeleteSession ? (
