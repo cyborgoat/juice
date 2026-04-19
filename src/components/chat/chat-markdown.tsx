@@ -1,3 +1,4 @@
+import { useState } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { CodeBlock, InlineCode } from "@/components/chat/code-block"
@@ -105,6 +106,36 @@ const markdownComponents: Components = {
   },
 }
 
+function ThinkBlock({ text }: { text: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="mb-1">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-[10px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+      >
+        <svg
+          width="8"
+          height="8"
+          viewBox="0 0 8 8"
+          fill="none"
+          className={`shrink-0 transition-transform duration-200 ${open ? "rotate-90" : ""}`}
+        >
+          <path d="M2 1.5L5.5 4L2 6.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="tracking-wide uppercase font-medium">thinking</span>
+      </button>
+      {open && (
+        <div className="mt-1.5 pl-3 border-l border-border/40 text-xs text-muted-foreground/60">
+          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            {text}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function ChatMarkdown({ content }: ChatMarkdownProps) {
   const segments = parseThinkBlocks(content)
 
@@ -116,21 +147,7 @@ export function ChatMarkdown({ content }: ChatMarkdownProps) {
         }
 
         if (segment.type === "think") {
-          return (
-            <details
-              key={`think-${index}`}
-              className="rounded-xl border border-border/70 bg-background/45 px-3 py-2 text-muted-foreground"
-            >
-              <summary className="cursor-pointer list-none text-[11px] font-medium uppercase tracking-[0.18em]">
-                Thinking
-              </summary>
-              <div className="mt-2 text-sm text-muted-foreground/90">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {segment.text}
-                </ReactMarkdown>
-              </div>
-            </details>
-          )
+          return <ThinkBlock key={`think-${index}`} text={segment.text} />
         }
 
         return (

@@ -299,10 +299,21 @@ export function mapHistoryToTranscript(
       continue
     }
     if (role === "thinking") {
+      // Buffer thinking; will be merged with the following assistant message
       entries.push({ id, type: "message", role: "assistant", content: `<think>${content}</think>`, timestamp })
       continue
     }
-    if (role === "assistant" || role === "user") {
+    if (role === "assistant") {
+      // Merge with a preceding thinking entry into a single record
+      const prev = entries[entries.length - 1]
+      if (prev?.type === "message" && prev.role === "assistant" && prev.content.startsWith("<think>")) {
+        entries[entries.length - 1] = { ...prev, content: `${prev.content}${content}` }
+      } else {
+        entries.push({ id, type: "message", role: "assistant", content, timestamp })
+      }
+      continue
+    }
+    if (role === "user") {
       entries.push({ id, type: "message", role, content, timestamp })
       continue
     }
