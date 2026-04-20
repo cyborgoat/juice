@@ -16,24 +16,14 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { JuiceMark } from "@/components/juice-mark"
 import { cn } from "@/lib/utils"
 import type { SessionSummary } from "@/lib/types"
 
 function JuiceSidebarMark() {
   return (
     <div className="flex size-9 items-center justify-center rounded-2xl border border-sidebar-border/70 bg-background/80 text-sidebar-foreground shadow-sm">
-      <svg
-        width="16"
-        height="16"
-        viewBox="0 0 14 14"
-        fill="none"
-        className="block shrink-0"
-        aria-hidden="true"
-      >
-        <path d="M9 4 L10.5 1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-        <path d="M3.5 4h7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-        <path d="M4 4h6l-1 8.5H5L4 4Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-      </svg>
+      <JuiceMark className="block size-4 shrink-0" title="" />
     </div>
   )
 }

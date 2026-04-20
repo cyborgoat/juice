@@ -16,6 +16,8 @@ Platform-specific shell capabilities:
 
 Key files: `src-tauri/src/lib.rs`, `scripts/`, `src/lib/tauri/cubicles-backend.ts`
 
+For native installer output paths and packaging steps, see `docs/build-and-bundle.md`.
+
 ## 2. React UI
 
 - **Vite + React** render the chat screen, settings, and sidebar.

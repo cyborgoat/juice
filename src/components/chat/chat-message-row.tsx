@@ -3,6 +3,7 @@ import { motion } from "motion/react"
 
 import { ChatMarkdown } from "@/components/chat/chat-markdown"
 import { CopyButton } from "@/components/chat/code-block"
+import { JuiceMark } from "@/components/juice-mark"
 import { cn } from "@/lib/utils"
 import type { TranscriptEntry } from "@/lib/types"
 
@@ -11,18 +12,7 @@ type MessageEntry = Extract<TranscriptEntry, { type: "message" }>
 function JuiceBadgeIcon() {
   return (
     <span className="inline-flex size-3 items-center justify-center">
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 14 14"
-        fill="none"
-        className="block shrink-0"
-        aria-hidden="true"
-      >
-        <path d="M9 4 L10.5 1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-        <path d="M3.5 4h7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
-        <path d="M4 4h6l-1 8.5H5L4 4Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-      </svg>
+      <JuiceMark className="block size-3 shrink-0" title="" />
     </span>
   )
 }

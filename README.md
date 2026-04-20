@@ -37,7 +37,7 @@ Juice supervises Cubicles as a local process and communicates over HTTP/SSE. It 
 └─────────────────────────────────────┘
 ```
 
-See [`docs/how-juice-works.md`](docs/how-juice-works.md) and [`docs/cubicles-integration.md`](docs/cubicles-integration.md) for more detail.
+See [`docs/how-juice-works.md`](docs/how-juice-works.md), [`docs/cubicles-integration.md`](docs/cubicles-integration.md), and [`docs/build-and-bundle.md`](docs/build-and-bundle.md) for more detail.
 
 ## Working folder
 
@@ -66,11 +66,30 @@ npm run lint              # ESLint
 npm run build             # Vite build only
 ```
 
+## Packaging
+
+Juice packages as a native Tauri desktop app. The standard packaging command is:
+
+```bash
+npm run tauri:build
+```
+
+That build already runs the frontend build and snapshots the Cubicles runtime into `src-tauri/resources/` through `beforeBuildCommand`.
+
+Platform bundle outputs:
+
+- macOS: `src-tauri/target/release/bundle/macos/Juice.app`
+- macOS DMG: `src-tauri/target/release/bundle/dmg/Juice_0.1.0_aarch64.dmg` or the architecture that matches the build host
+- Windows: `src-tauri/target/release/bundle/` with `.msi` and NSIS `.exe` installers when built on Windows
+
+For full packaging instructions, prerequisites, and platform-specific notes, see [`docs/build-and-bundle.md`](docs/build-and-bundle.md).
+
 ## Requirements
 
 - **Node.js ≥25** — required at build time and at runtime (Juice spawns `node` to run the Cubicles server)
 - **Rust toolchain** — for Tauri ([prerequisites](https://tauri.app/start/prerequisites/))
 - **A built Cubicles workspace** at `JUICE_CUBICLES_ROOT`
+- **Platform-native build host for installers** — build the macOS app on macOS and Windows installers on Windows unless you add your own cross-compilation/signing setup
 
 ### Platform support
 

@@ -6,6 +6,7 @@ This folder explains how Juice works as a desktop shell over the external Cubicl
 
 - [How Juice works](./how-juice-works.md)
 - [Cubicles integration](./cubicles-integration.md)
+- [Build and bundle guide](./build-and-bundle.md)
 
 ## Short answer
 
@@ -37,3 +38,7 @@ Still planned:
 - richer structured slash/tool rendering
 - approval recovery hardening across reopened sessions
 - production packaging/runtime diagnostics
+
+## Packaging note
+
+Juice ships as a Tauri desktop bundle. Use `npm run tauri:build` to produce native artifacts, and use the platform-specific instructions in [Build and bundle guide](./build-and-bundle.md) for macOS and Windows packaging details.
