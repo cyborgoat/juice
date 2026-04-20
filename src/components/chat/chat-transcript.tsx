@@ -35,11 +35,18 @@ export function ChatTranscript({
   approvalBusy = false,
 }: ChatTranscriptProps) {
   const [openPreviewId, setOpenPreviewId] = useState<string | null>(null)
+  const lastEntry = entries[entries.length - 1]
+  const hasInlineGenerationStatus =
+    lastEntry?.type === "tool-preview" ||
+    lastEntry?.type === "tool" ||
+    (lastEntry?.type === "message" && lastEntry.role === "assistant")
+  const shouldShowWorkingIndicator =
+    showWorkingIndicator && !(isStreaming && hasInlineGenerationStatus)
 
   return (
     <div className="flex min-w-0 w-full flex-col space-y-1.5 px-2 py-1.5 md:px-3 md:py-2">
       <AnimatePresence initial={false}>
-        {entries.map((entry) => {
+        {entries.map((entry, index) => {
           if (entry.type === "message") {
             return <ChatMessageRow key={entry.id} entry={entry} />
           }
@@ -75,7 +82,7 @@ export function ChatTranscript({
           if (entry.type === "tool") {
             return (
               <ChatToolCard
-                key={entry.id}
+                key={`${entry.id}-${index}`}
                 entry={entry}
                 approvalBusy={approvalBusy}
                 onApproveApproval={onApproveApproval}
@@ -120,7 +127,7 @@ export function ChatTranscript({
           )
         })}
 
-        {showWorkingIndicator ? <ChatWorkingIndicator label={workingLabel} /> : null}
+        {shouldShowWorkingIndicator ? <ChatWorkingIndicator label={workingLabel} /> : null}
       </AnimatePresence>
     </div>
   )

@@ -1,10 +1,10 @@
-import { CornerDownLeft, Hash, Paperclip, Terminal } from "lucide-react"
+import { CornerDownLeft, Hash, Paperclip, Square, Terminal } from "lucide-react"
 import { type KeyboardEvent, useMemo, useRef, useState } from "react"
 
 const isMac = navigator.userAgent.includes("Mac")
 
 /** Ignore Enter-to-send shortly after the last edit to reduce accidental sends. */
-const ENTER_SEND_GUARD_MS = 500
+const ENTER_SEND_GUARD_MS = 150
 
 import { Button } from "@/components/ui/button"
 import type { CubiclesSlashCommand, ToolReference } from "@/lib/cubicles-api/types"
@@ -146,7 +146,13 @@ export function ChatComposer({
   const placeholder = isAwaitingApproval
     ? "Type a redirect message to guide the AI instead… · Enter to send"
     : `Message Juice… · Enter ↵ send · ${isMac ? "⌘↵" : "Ctrl↵"} new line · / commands`
-  const sendLabel = isAwaitingApproval ? "Redirect" : isSlashDraft ? "Run" : "Send"
+  const sendLabel = isStreaming
+    ? "Stop"
+    : isAwaitingApproval
+      ? "Redirect"
+      : isSlashDraft
+        ? "Run"
+        : "Send"
 
   return (
     <div className="relative">
@@ -227,12 +233,14 @@ export function ChatComposer({
           <Button
             type="button"
             size="icon"
+            variant={isStreaming ? "destructive" : "default"}
             className="size-7 rounded-full"
             onClick={isStreaming ? onStop : submit}
             disabled={disabled || (isStreaming && !onStop)}
             title={sendLabel}
+            aria-label={sendLabel}
           >
-            <CornerDownLeft className="size-3.5" />
+            {isStreaming ? <Square className="size-3.5" /> : <CornerDownLeft className="size-3.5" />}
           </Button>
         </div>
       </div>

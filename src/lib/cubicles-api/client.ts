@@ -170,18 +170,20 @@ export function executeCubiclesSlashCommand(body: CubiclesSlashExecutionRequest)
 }
 
 export function deleteCubiclesSession(
-  sessionId: string,
-  body?: {
-    active_session_id?: string | null
-    profile_name?: string | null
-    workspace_path?: string | null
-  }
+  sessionId: string
 ) {
-  return executeCubiclesSlashCommand({
-    command: `/sessions delete ${sessionId}`,
-    session_id: body?.active_session_id ?? undefined,
-    profile_name: body?.profile_name ?? undefined,
-    workspace_path: body?.workspace_path ?? undefined,
+  return fetch(`${getCubiclesApiBase()}/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "DELETE",
+  }).then(async (response) => {
+    if (!response.ok) {
+      throw new Error(`Cubicles request failed: ${response.status} ${response.statusText}`)
+    }
+
+    if (response.status === 204) {
+      return { session_id: null }
+    }
+
+    return (await response.json()) as { session_id?: string | null }
   })
 }
 

@@ -460,19 +460,11 @@ export function ChatPanel() {
 
     setIsMutatingSession(true)
     try {
-      const profileName =
-        settingsQuery.data?.default_profile ?? profilesQuery.data?.[0]?.name ?? null
-      const commandSessionId =
-        settingsQuery.data?.active_session_id ??
-        (selectedSessionId && remoteSessionIds.has(selectedSessionId) ? selectedSessionId : null) ??
-        sessionId
+      const remoteSessions = sessionsQuery.data ?? []
+      const hasOtherRemoteSessions = remoteSessions.some((entry) => entry.id !== sessionId)
 
       logger.info("Deleting session", { sessionId, title: session.title })
-      const result = await deleteCubiclesSession(sessionId, {
-        active_session_id: commandSessionId,
-        profile_name: profileName,
-        workspace_path: workspaceReady ? workingDirectory : null,
-      })
+      const result = await deleteCubiclesSession(sessionId)
 
       setTranscripts((previousTranscripts) => {
         const nextTranscripts = { ...previousTranscripts }
@@ -480,7 +472,10 @@ export function ChatPanel() {
         return nextTranscripts
       })
 
-      const nextSessionId = result.session_id && result.session_id !== sessionId ? result.session_id : ""
+      const nextSessionId =
+        hasOtherRemoteSessions && result.session_id && result.session_id !== sessionId
+          ? result.session_id
+          : ""
       setSelectedSessionId(nextSessionId)
 
       await Promise.all([
@@ -496,7 +491,6 @@ export function ChatPanel() {
       logger.info("Deleted session", {
         sessionId,
         nextSessionId: nextSessionId || null,
-        commandSessionId,
       })
       setDeleteCandidateSessionId(null)
     } catch (error) {
@@ -672,9 +666,15 @@ export function ChatPanel() {
     }
   }
 
-  async function handleStopStreaming() {
+  async function handleStopStreaming(force = false) {
     const sessionId = activeStreamSessionIdRef.current ?? activeSession?.id
-    if (!sessionId || !isStreaming) {
+    const canStopForApproval =
+      force &&
+      !!activeSession?.id &&
+      !!awaitingApprovalEntry?.approvalId &&
+      sessionId === activeSession.id
+
+    if (!sessionId || (!isStreaming && !canStopForApproval)) {
       return
     }
 
@@ -693,6 +693,9 @@ export function ChatPanel() {
     setTranscripts((prev) =>
       appendEntry(prev, sessionId, buildSystemEntry("Stopped", "Generation interrupted."))
     )
+    await queryClient.invalidateQueries({
+      queryKey: ["cubicles", "pending-approval", sessionId],
+    })
   }
 
   async function handleSendMessage(value: string) {
@@ -952,6 +955,15 @@ export function ChatPanel() {
     }
 
     await handleSendMessage(value)
+  }
+
+  async function handleStopAction() {
+    if (awaitingApprovalEntry?.approvalId) {
+      await handleStopStreaming(true)
+      return
+    }
+
+    await handleStopStreaming()
   }
 
   const contentWidthClass = activeView === "settings" ? "max-w-6xl" : "max-w-none"
@@ -1255,7 +1267,9 @@ export function ChatPanel() {
                   <div className="space-y-1.5">
                     <p className="text-sm font-medium text-foreground/80">Welcome to Juice</p>
                     <p className="text-xs text-muted-foreground">
-                      Pick a working folder under Settings, then create a session to start chatting.
+                      {workspaceReady
+                        ? "Create your first session to start chatting."
+                        : "Pick a working folder under Settings, then create your first session."}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1298,7 +1312,9 @@ export function ChatPanel() {
                       onRejectApproval={(approvalId) => {
                         void handleApprovalAction(approvalId, { approved: false })
                       }}
-                      onStop={() => void handleStopStreaming()}
+                      onStop={() => {
+                        void handleStopAction()
+                      }}
                     />
                   </div>
                 </div>
@@ -1310,7 +1326,7 @@ export function ChatPanel() {
                         void handleComposerSubmit(value)
                       }}
                       onStop={() => {
-                        void handleStopStreaming()
+                        void handleStopAction()
                       }}
                       disabled={
                         backendState.mode === "error" ||
