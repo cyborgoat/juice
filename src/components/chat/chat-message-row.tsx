@@ -55,7 +55,7 @@ export function ChatMessageRow({ entry }: { entry: MessageEntry }) {
             {isUser ? <User className="block size-3 shrink-0" /> : <JuiceBadgeIcon />}
             <span className="translate-y-[0.5px] font-medium">{isUser ? "You" : "Juice"}</span>
           </span>
-          <span className="ml-auto shrink-0 tabular-nums">{entry.timestamp}</span>
+          <span className={cn("shrink-0 tabular-nums", isUser ? "ml-auto" : "")}>{entry.timestamp}</span>
         </div>
         <div
           className={cn(

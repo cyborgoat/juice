@@ -147,7 +147,7 @@ export function buildVisibleSessions(
     return localSessions
   }
 
-  return (remoteSessions ?? []).map<SessionSummary>((session) => ({
+  const syncedRemoteSessions = (remoteSessions ?? []).map<SessionSummary>((session) => ({
     id: session.id,
     title: session.name,
     workspace: session.workspace_name,
@@ -159,14 +159,17 @@ export function buildVisibleSessions(
     hasPendingApproval:
       pendingApproval?.approvalId != null && pendingApproval.sessionId === session.id,
   }))
+
+  return [...localSessions, ...syncedRemoteSessions]
 }
 
 export function resolvePreferredSessionId(
   selectedSessionId: string,
+  visibleSessions: Array<{ id: string }>,
   remoteSessions: CubiclesSessionResponse[],
   activeSessionId?: string | null
 ): string {
-  if (selectedSessionId && remoteSessions.some((session) => session.id === selectedSessionId)) {
+  if (selectedSessionId && visibleSessions.some((session) => session.id === selectedSessionId)) {
     return selectedSessionId
   }
 

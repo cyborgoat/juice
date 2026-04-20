@@ -351,14 +351,19 @@ export function ChatPanel() {
       return
     }
 
+    if (selectedSessionId && visibleSessions.some((session) => session.id === selectedSessionId)) {
+      return
+    }
+
     const remoteSessions = sessionsQuery.data ?? []
-    if (!remoteSessions.length) {
+    if (!visibleSessions.length) {
       setSelectedSessionId("")
       return
     }
 
     const preferredSessionId = resolvePreferredSessionId(
       selectedSessionId,
+      visibleSessions,
       remoteSessions,
       settingsQuery.data?.active_session_id
     )
@@ -366,7 +371,7 @@ export function ChatPanel() {
     if (preferredSessionId !== selectedSessionId) {
       setSelectedSessionId(preferredSessionId)
     }
-  }, [backendState.mode, selectedSessionId, sessionsQuery.data, settingsQuery.data?.active_session_id])
+  }, [backendState.mode, selectedSessionId, sessionsQuery.data, settingsQuery.data?.active_session_id, visibleSessions])
 
   useEffect(() => {
     if (
@@ -412,49 +417,23 @@ export function ChatPanel() {
 
   async function handleCreateSession() {
     setActiveView("chat")
-    if (backendState.mode === "ready") {
-      if (!workspaceReady) {
-        toast.error("Choose a working folder before creating a session.")
-        setActiveSettingsTab("working-folder")
-        setActiveView("settings")
-        return
-      }
-      logger.info("Creating remote session", { currentSessionCount: visibleSessions.length })
-      const createdSession = await createCubiclesSession(
-        buildSessionTitle(visibleSessions.length),
-        workingDirectory
-      )
-      await activateCubiclesSession(createdSession.id)
-      setTranscripts((previousTranscripts) => ({
-        ...previousTranscripts,
-        [createdSession.id]: [],
-      }))
-      setSelectedSessionId(createdSession.id)
-      logger.info("Created remote session", { sessionId: createdSession.id })
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] }),
-        queryClient.invalidateQueries({ queryKey: ["cubicles", "settings"] }),
-        queryClient.invalidateQueries({ queryKey: ["cubicles", "session-history", createdSession.id] }),
-      ])
-      return
-    }
-
     const id = crypto.randomUUID()
-    const title = buildSessionTitle(localSessions.length)
+    const title = buildSessionTitle(visibleSessions.length)
     const session: SessionSummary = {
       id,
       title,
-      workspace: "juice",
-      preview: "Fresh session ready for Cubicles-backed chat wiring.",
+      workspace: workspaceReady ? workingDirectory.split("/").filter(Boolean).at(-1) ?? "Draft" : "Draft",
+      preview: "Draft session. A real Cubicles session will start on the first message.",
       updatedAtLabel: "Just now",
-      status: "ready",
+      status: "idle",
     }
 
     setLocalSessions((previousSessions) => [session, ...previousSessions])
     setTranscripts((prev) =>
-      appendEntry(prev, id, buildSystemEntry("New session", "This placeholder session is ready for the next phase, where Juice will create and activate real Cubicles sessions through the local desktop backend."))
+      appendEntry(prev, id, buildSystemEntry("Draft session", "This draft stays local until you send the first message or slash command. Juice will create the real Cubicles session at that point."))
     )
     setSelectedSessionId(id)
+    logger.info("Created local draft session", { sessionId: id })
   }
 
   async function handleSelectSession(sessionId: string) {
@@ -474,7 +453,27 @@ export function ChatPanel() {
 
   async function handleDeleteSession(sessionId: string) {
     const session = visibleSessions.find((entry) => entry.id === sessionId)
-    if (!session || backendState.mode !== "ready") {
+    if (!session) {
+      return
+    }
+
+    if (!remoteSessionIds.has(sessionId)) {
+      setLocalSessions((previousSessions) =>
+        previousSessions.filter((entry) => entry.id !== sessionId)
+      )
+      setTranscripts((previousTranscripts) => {
+        const nextTranscripts = { ...previousTranscripts }
+        delete nextTranscripts[sessionId]
+        return nextTranscripts
+      })
+      if (selectedSessionId === sessionId) {
+        setSelectedSessionId("")
+      }
+      setDeleteCandidateSessionId(null)
+      return
+    }
+
+    if (backendState.mode !== "ready") {
       return
     }
 
@@ -520,6 +519,10 @@ export function ChatPanel() {
     }
 
     const createdSession = await createCubiclesSession(session.title, workingDirectory)
+    await activateCubiclesSession(createdSession.id)
+    setLocalSessions((previousSessions) =>
+      previousSessions.filter((entry) => entry.id !== session.id)
+    )
     setTranscripts((previousTranscripts) => {
       const nextTranscripts = { ...previousTranscripts }
       const existingEntries = nextTranscripts[session.id]
@@ -531,7 +534,11 @@ export function ChatPanel() {
       return nextTranscripts
     })
     setSelectedSessionId(createdSession.id)
-    await queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] }),
+      queryClient.invalidateQueries({ queryKey: ["cubicles", "settings"] }),
+      queryClient.invalidateQueries({ queryKey: ["cubicles", "session-history", createdSession.id] }),
+    ])
 
     return createdSession.id
   }
