@@ -29,4 +29,9 @@
 
 - **Packaged runtime → sidecar binary** — evaluate replacing the Node-managed Cubicles resources with a dedicated Tauri sidecar so the app is fully self-contained without requiring a Node runtime on the host machine
 
+- **Cross-platform release packaging** — add a GitHub Actions release workflow with a native build matrix for `macos-latest` and `windows-latest`; run `npm install` and `npm run tauri:build` on each host, upload artifacts from `src-tauri/target/release/bundle/`, and support macOS `.app` / `.dmg` plus Windows `.msi` / NSIS `.exe`
+
+- **CI runtime packaging input** — remove the release build dependency on an arbitrary local `JUICE_CUBICLES_ROOT`; either vendor the Cubicles runtime snapshot for release builds or add a deterministic CI step that checks out and builds Cubicles in a known path before `npm run package:runtime`
+
+- **Release signing and notarization** — when packaging is automated, add platform trust work: Apple code signing plus notarization for macOS, and Authenticode signing for Windows installers
 
