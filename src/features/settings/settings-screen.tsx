@@ -207,24 +207,27 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
         onValueChange={handleTabChange}
         className="flex min-h-0 flex-1 flex-col"
       >
-        {/* Sticky tab nav */}
-        <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-3 py-1.5 backdrop-blur-sm md:px-4">
+        <div className="sticky top-0 z-10 border-b border-border/50 bg-background/95 px-3 py-2 backdrop-blur-sm md:px-4">
           <div className="mx-auto max-w-4xl">
-            <TabsList className="h-auto w-full justify-start gap-1 overflow-x-auto bg-transparent p-0">
+            <TabsList className="h-auto w-full justify-start gap-1.5 overflow-x-auto bg-transparent p-0">
               {tabs.map((tab) => (
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
-                  className="h-7 min-w-fit shrink-0 rounded-md px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-active:bg-primary/10 data-active:text-foreground"
+                  className="h-auto min-w-fit shrink-0 rounded-xl px-3 py-2 text-left text-[11px] font-medium tracking-[0.01em] text-muted-foreground transition-colors hover:text-foreground data-active:bg-card data-active:text-foreground data-active:shadow-sm"
                 >
-                  {tab.label}
+                  <span className="flex flex-col items-start gap-0.5 leading-none">
+                    <span className="text-[11px] font-semibold">{tab.label}</span>
+                    <span className="text-[10px] font-normal text-muted-foreground/80">
+                      {tab.description}
+                    </span>
+                  </span>
                 </TabsTrigger>
               ))}
             </TabsList>
           </div>
         </div>
 
-        {/* Scrollable content */}
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 md:px-4">
           <div className="mx-auto max-w-4xl">
             <TabsContent value="overview">

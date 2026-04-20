@@ -19,6 +19,25 @@ import {
 import { cn } from "@/lib/utils"
 import type { SessionSummary } from "@/lib/types"
 
+function JuiceSidebarMark() {
+  return (
+    <div className="flex size-9 items-center justify-center rounded-2xl border border-sidebar-border/70 bg-background/80 text-sidebar-foreground shadow-sm">
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 14 14"
+        fill="none"
+        className="block shrink-0"
+        aria-hidden="true"
+      >
+        <path d="M9 4 L10.5 1" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+        <path d="M3.5 4h7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+        <path d="M4 4h6l-1 8.5H5L4 4Z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+      </svg>
+    </div>
+  )
+}
+
 type SessionSidebarProps = {
   sessions: SessionSummary[]
   selectedSessionId: string
@@ -72,22 +91,25 @@ export function SessionSidebar({
     >
       <SidebarHeader className="gap-3 border-b border-sidebar-border/70 p-3">
         <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-[11px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
-              Juice
-            </p>
-            <h1 className="truncate text-base font-semibold tracking-tight text-sidebar-foreground">
-              Sessions
-            </h1>
+          <div className="flex min-w-0 items-center gap-3">
+            <JuiceSidebarMark />
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium tracking-[0.01em] text-muted-foreground/75">
+                Juice
+              </p>
+              <h1 className="truncate text-[15px] font-semibold tracking-[-0.02em] text-sidebar-foreground">
+                Workspace Sessions
+              </h1>
+            </div>
           </div>
-          <Button variant="ghost" size="icon-sm" className="rounded-full" onClick={handleCloseSidebar}>
+          <Button variant="ghost" size="icon-sm" className="rounded-full text-muted-foreground/80" onClick={handleCloseSidebar}>
             <X className="size-4" />
             <span className="sr-only">Close sidebar</span>
           </Button>
         </div>
 
-        <Button className="h-8 w-full justify-between rounded-xl px-3" size="sm" onClick={onCreateSession}>
-          New
+        <Button className="h-9 w-full justify-between rounded-2xl px-3.5 text-[13px] font-semibold shadow-sm" size="sm" onClick={onCreateSession}>
+          New draft
           <MessageSquarePlus className="size-4" />
         </Button>
 
@@ -109,7 +131,7 @@ export function SessionSidebar({
 
             return (
               <SidebarMenuItem key={session.id}>
-                <motion.div
+            <motion.div
                   className="group/session"
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -120,23 +142,28 @@ export function SessionSidebar({
                     isActive={isActive}
                     tooltip={session.title}
                     onClick={() => onSelectSession(session.id)}
-                    className="h-auto rounded-xl px-2.5 py-2"
+                    className="h-auto rounded-2xl px-2.5 py-2.5"
                   >
                     <span
                       className={cn(
-                        "size-1.5 shrink-0 rounded-full",
+                        "mt-0.5 size-2 shrink-0 rounded-full ring-2 ring-background/80",
                         session.status === "live"
                           ? "bg-emerald-500"
                           : session.status === "ready"
                             ? "bg-sky-400"
-                            : "bg-muted-foreground/50"
+                            : "bg-amber-400"
                       )}
                     />
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                      {session.title}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-semibold tracking-[-0.01em]">
+                        {session.title}
+                      </span>
+                      <span className="block truncate pt-0.5 text-[11px] text-muted-foreground/80">
+                        {session.preview}
+                      </span>
                     </span>
                     {session.hasPendingApproval ? (
-                      <span className="shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-400">
+                      <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium tracking-[0.01em] text-amber-600 dark:text-amber-400">
                         approval
                       </span>
                     ) : null}
@@ -146,7 +173,7 @@ export function SessionSidebar({
                     <SidebarMenuAction
                       type="button"
                       showOnHover
-                      className="inset-y-0 right-1 my-auto h-6 w-6 rounded-full hover:bg-destructive/10 hover:text-destructive"
+                      className="inset-y-0 right-1 my-auto h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive"
                       disabled={isMutatingSession}
                       onClick={(event) => {
                         event.preventDefault()
@@ -169,7 +196,7 @@ export function SessionSidebar({
                 No sessions match <span className="font-medium text-foreground">“{query}”</span>.
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-sidebar-border bg-background/40 px-4 py-8 text-center">
+              <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-sidebar-border bg-background/40 px-4 py-8 text-center">
                 <MessageSquarePlus className="size-8 text-muted-foreground/40" />
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-foreground/80">No sessions yet</p>
@@ -192,7 +219,7 @@ export function SessionSidebar({
               type="button"
               isActive={currentView === "settings"}
               onClick={onOpenSettings}
-              className="h-8 rounded-xl"
+              className="h-9 rounded-2xl text-[13px] font-medium"
             >
               <Settings2 className="size-4" />
               <span>Settings</span>

@@ -58,7 +58,7 @@ import {
 function HeaderMetaChip({ label, value }: { label: string; value: string }) {
   return (
     <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-border/70 bg-background/55 px-2 py-1 text-[11px] leading-none text-muted-foreground">
-      <span className="shrink-0 uppercase tracking-[0.16em] text-foreground/75">{label}</span>
+      <span className="shrink-0 font-medium text-foreground/75">{label}</span>
       <span className="truncate">{value}</span>
     </span>
   )
