@@ -92,11 +92,22 @@ export function ChatComposer({
     setDraft(suggestion.nextValue)
   }
 
+  function suggestionChangesDraft(index: number) {
+    const suggestion = activeSuggestions[index]
+    if (!suggestion) return false
+    return suggestion.nextValue.trimEnd() !== draft.trimEnd()
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     const isNewlineCombo = isMac ? (event.metaKey || event.altKey) : (event.ctrlKey || event.altKey)
     if (event.key === "Enter" && isNewlineCombo) return
 
-    if (event.key === "Enter" && !event.shiftKey && activeSuggestions.length) {
+    if (
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      activeSuggestions.length &&
+      suggestionChangesDraft(selectedSuggestionIndex)
+    ) {
       event.preventDefault()
       applySuggestion(selectedSuggestionIndex)
       return
