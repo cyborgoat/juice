@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { BarChart2, Clipboard, MessageSquarePlus, Moon, PanelLeft, Settings2, Sun, Trash2, XCircle } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTheme } from "@/hooks/use-theme"
 import { toast } from "sonner"
 
@@ -18,6 +18,7 @@ import {
   fetchCubiclesToolReferences,
   stopCubiclesChat,
   streamCubiclesChat,
+  updateCubiclesSession,
 } from "@/lib/cubicles-api/client"
 import type {
   CubiclesChatEvent,
@@ -33,6 +34,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { SettingsScreen, type SettingsTab } from "@/features/settings/settings-screen"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { type SessionSummary, type TranscriptEntry } from "@/lib/types"
+import { persistWorkingDirectory, readWorkingDirectory } from "@/lib/working-directory"
 import { createLogger } from "@/lib/logger"
 import { transcriptToMarkdown } from "@/lib/transcript-export"
 import { cn } from "@/lib/utils"
@@ -79,6 +81,8 @@ export function ChatPanel() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [activeView, setActiveView] = useState<"chat" | "settings">("chat")
   const [activeSettingsTab, setActiveSettingsTab] = useState<SettingsTab>("overview")
+  const [workingDirectory, setWorkingDirectory] = useState(() => readWorkingDirectory())
+  const workspaceReady = workingDirectory.trim().length > 0
   const [isStreaming, setIsStreaming] = useState(false)
   const [isMutatingSession, setIsMutatingSession] = useState(false)
   const [deleteCandidateSessionId, setDeleteCandidateSessionId] = useState<string | null>(null)
@@ -126,6 +130,10 @@ export function ChatPanel() {
   useEffect(() => {
     logger.info("Backend state changed", backendState)
   }, [backendState])
+
+  useEffect(() => {
+    persistWorkingDirectory(workingDirectory)
+  }, [workingDirectory])
 
   const settingsQuery = useQuery({
     queryKey: ["cubicles", "settings"],
@@ -187,6 +195,39 @@ export function ChatPanel() {
     () =>
       sessionsQuery.data?.find((session) => session.id === activeSession?.id) ?? null,
     [activeSession?.id, sessionsQuery.data]
+  )
+
+  const commitWorkingDirectory = useCallback(
+    async (path: string) => {
+      const normalized = path.trim()
+      setWorkingDirectory(normalized)
+      persistWorkingDirectory(normalized)
+      if (backendState.mode !== "ready" || !normalized) {
+        return
+      }
+      const sid =
+        selectedSessionId && remoteSessionIds.has(selectedSessionId)
+          ? selectedSessionId
+          : activeSession?.id
+      if (sid && remoteSessionIds.has(sid)) {
+        try {
+          await updateCubiclesSession(sid, { workspace_path: normalized })
+          await queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] })
+        } catch (error) {
+          logger.error("Failed to sync working folder to session", { sid, error })
+          toast.error(
+            error instanceof Error ? error.message : "Could not update session working folder."
+          )
+        }
+      }
+    },
+    [
+      activeSession?.id,
+      backendState.mode,
+      queryClient,
+      remoteSessionIds,
+      selectedSessionId,
+    ]
   )
 
   const contextUsagePercent = useMemo(() => {
@@ -352,9 +393,16 @@ export function ChatPanel() {
   async function handleCreateSession() {
     setActiveView("chat")
     if (backendState.mode === "ready") {
+      if (!workspaceReady) {
+        toast.error("Choose a working folder before creating a session.")
+        setActiveSettingsTab("working-folder")
+        setActiveView("settings")
+        return
+      }
       logger.info("Creating remote session", { currentSessionCount: visibleSessions.length })
       const createdSession = await createCubiclesSession(
-        buildSessionTitle(visibleSessions.length)
+        buildSessionTitle(visibleSessions.length),
+        workingDirectory
       )
       await activateCubiclesSession(createdSession.id)
       setTranscripts((previousTranscripts) => ({
@@ -423,6 +471,7 @@ export function ChatPanel() {
       const result = await deleteCubiclesSession(sessionId, {
         active_session_id: commandSessionId,
         profile_name: profileName,
+        workspace_path: workspaceReady ? workingDirectory : null,
       })
 
       setTranscripts((previousTranscripts) => {
@@ -467,7 +516,7 @@ export function ChatPanel() {
       return session.id
     }
 
-    const createdSession = await createCubiclesSession(session.title)
+    const createdSession = await createCubiclesSession(session.title, workingDirectory)
     setTranscripts((previousTranscripts) => {
       const nextTranscripts = { ...previousTranscripts }
       const existingEntries = nextTranscripts[session.id]
@@ -651,6 +700,13 @@ export function ChatPanel() {
       return
     }
 
+    if (backendState.mode === "ready" && !workspaceReady) {
+      toast.error("Choose a working folder in Settings → Working folder.")
+      setActiveSettingsTab("working-folder")
+      setActiveView("settings")
+      return
+    }
+
     if (backendState.mode !== "ready") {
       const userEntry: TranscriptEntry = {
         id: `user-${crypto.randomUUID()}`,
@@ -707,6 +763,7 @@ export function ChatPanel() {
         message: value,
         session_id: sessionId,
         profile_name: profileName,
+        workspace_path: workingDirectory,
       })
     } finally {
       freshlyStreamedRef.current.add(sessionId)
@@ -719,6 +776,13 @@ export function ChatPanel() {
 
   async function handleRunSlashCommand(command: string) {
     if (!activeSession || isStreaming) {
+      return
+    }
+
+    if (backendState.mode === "ready" && !workspaceReady) {
+      toast.error("Choose a working folder in Settings → Working folder.")
+      setActiveSettingsTab("working-folder")
+      setActiveView("settings")
       return
     }
 
@@ -750,6 +814,7 @@ export function ChatPanel() {
         command,
         session_id: sessionId,
         profile_name: profileName,
+        workspace_path: workingDirectory,
       })
       targetSessionId = result.session_id || sessionId
       const slashOutput =
@@ -807,6 +872,13 @@ export function ChatPanel() {
       return
     }
 
+    if (!workspaceReady) {
+      toast.error("Choose a working folder in Settings → Working folder.")
+      setActiveSettingsTab("working-folder")
+      setActiveView("settings")
+      return
+    }
+
     const sessionId = await resolveRemoteSessionId(activeSession)
     const profileName =
       settingsQuery.data?.default_profile ?? profilesQuery.data?.[0]?.name ?? null
@@ -845,6 +917,7 @@ export function ChatPanel() {
       await streamChatRequest(sessionId, {
         session_id: sessionId,
         profile_name: profileName,
+        workspace_path: workingDirectory,
         approval_id: approvalId,
         approved: decision.approved ?? null,
         redirect_message: decision.redirectMessage ?? null,
@@ -1045,6 +1118,7 @@ export function ChatPanel() {
                     <HeaderMetaChip
                       label="Workspace"
                       value={
+                        (workspaceReady ? workingDirectory : null) ??
                         activeRemoteSession?.workspace_path ??
                         activeSession?.workspace ??
                         "Not selected"
@@ -1125,11 +1199,30 @@ export function ChatPanel() {
             )}
           </header>
 
+          {backendState.mode === "ready" && !workspaceReady ? (
+            <div className="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-center text-xs leading-relaxed text-amber-950 dark:text-amber-50/95">
+              <span className="font-medium">Working folder required.</span>{" "}
+              Cubicles needs an on-disk project directory before chat or tools can run.{" "}
+              <button
+                type="button"
+                className="font-medium underline decoration-amber-700/50 underline-offset-2 hover:decoration-amber-950 dark:hover:decoration-amber-100"
+                onClick={() => {
+                  setActiveSettingsTab("working-folder")
+                  setActiveView("settings")
+                }}
+              >
+                Choose folder
+              </button>
+            </div>
+          ) : null}
+
           {activeView === "settings" ? (
             <SettingsScreen
               backendState={backendState}
               activeTab={activeSettingsTab}
               onActiveTabChange={setActiveSettingsTab}
+              workingDirectory={workingDirectory}
+              onWorkingDirectoryCommit={commitWorkingDirectory}
             />
           ) : showEmptyChatState ? (
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 text-center">
@@ -1162,7 +1255,7 @@ export function ChatPanel() {
                   <div className="space-y-1.5">
                     <p className="text-sm font-medium text-foreground/80">Welcome to Juice</p>
                     <p className="text-xs text-muted-foreground">
-                      Create a session to start chatting with your AI workspace.
+                      Pick a working folder under Settings, then create a session to start chatting.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1219,7 +1312,10 @@ export function ChatPanel() {
                       onStop={() => {
                         void handleStopStreaming()
                       }}
-                      disabled={backendState.mode === "error"}
+                      disabled={
+                        backendState.mode === "error" ||
+                        (backendState.mode === "ready" && !workspaceReady)
+                      }
                       isStreaming={isStreaming && !awaitingApprovalEntry}
                       isAwaitingApproval={Boolean(awaitingApprovalEntry?.approvalId)}
                       slashCommands={slashCommandsQuery.data?.commands ?? []}

@@ -127,6 +127,8 @@ async function startCubiclesBackend(): Promise<CubiclesBackendState> {
     JUICE_SCRIPT_ROOT: scriptRoot,
     HOST: CUBICLES_HOST,
     PORT: `${CUBICLES_PORT}`,
+    /** Desktop server has no TTY; record trust without blocking (users can still use `cubicles trust`). */
+    CUBICLES_SKIP_TRUST_PROMPT: "1",
   }
 
   try {

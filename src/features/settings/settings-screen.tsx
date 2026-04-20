@@ -11,7 +11,6 @@ import {
   fetchCubiclesSettings,
   fetchCubiclesSkills,
   fetchCubiclesToolCatalog,
-  fetchCubiclesWorkspaces,
   updateCubiclesMemoryDocument,
 } from "@/lib/cubicles-api/client"
 import type { CubiclesBackendState } from "@/lib/tauri/cubicles-backend"
@@ -20,14 +19,24 @@ import { ApisTab } from "./apis-tab"
 import { OverviewTab } from "./overview-tab"
 import { ProfilesTab } from "./profiles-tab"
 import { ExtensionsTab, HarnessTab, MemoryTab, SkillsTab } from "./tools-tab"
-import { WorkspacesTab } from "./workspaces-tab"
+import { WorkingFolderTab } from "./working-folder-tab"
 
-export type SettingsTab = "overview" | "profiles" | "workspaces" | "memory" | "apis" | "extensions" | "skills" | "harness"
+export type SettingsTab =
+  | "overview"
+  | "profiles"
+  | "working-folder"
+  | "memory"
+  | "apis"
+  | "extensions"
+  | "skills"
+  | "harness"
 
 type SettingsScreenProps = {
   backendState: CubiclesBackendState
   activeTab?: SettingsTab
   onActiveTabChange?: (tab: SettingsTab) => void
+  workingDirectory: string
+  onWorkingDirectoryCommit: (path: string) => void | Promise<void>
 }
 
 export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) {
@@ -40,7 +49,6 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
     props.onActiveTabChange?.(tab)
   }
   const [selectedProfileName, setSelectedProfileName] = useState("")
-  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("")
   const isReady = backendState.mode === "ready"
 
   const settingsQuery = useQuery({
@@ -52,12 +60,6 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
   const profilesQuery = useQuery({
     queryKey: ["cubicles", "profiles"],
     queryFn: fetchCubiclesProfiles,
-    enabled: isReady,
-  })
-
-  const workspacesQuery = useQuery({
-    queryKey: ["cubicles", "workspaces"],
-    queryFn: fetchCubiclesWorkspaces,
     enabled: isReady,
   })
 
@@ -112,32 +114,6 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
     [settingsQuery.data?.providers]
   )
 
-  const effectiveSelectedWorkspaceId = useMemo(() => {
-    if (!workspacesQuery.data?.length) {
-      return ""
-    }
-
-    if (selectedWorkspaceId) {
-      const match = workspacesQuery.data.find((workspace) => workspace.id === selectedWorkspaceId)
-      if (match) {
-        return match.id
-      }
-    }
-
-    return (
-      settingsQuery.data?.default_workspace_id ??
-      workspacesQuery.data.find((workspace) => workspace.is_default)?.id ??
-      workspacesQuery.data[0]?.id ??
-      ""
-    )
-  }, [selectedWorkspaceId, settingsQuery.data?.default_workspace_id, workspacesQuery.data])
-
-  const selectedWorkspace = useMemo(
-    () =>
-      workspacesQuery.data?.find((workspace) => workspace.id === effectiveSelectedWorkspaceId) ?? null,
-    [effectiveSelectedWorkspaceId, workspacesQuery.data]
-  )
-
   const skillsQuery = useQuery({
     queryKey: ["cubicles", "skills", toolingProfileName],
     queryFn: () => fetchCubiclesSkills(toolingProfileName),
@@ -154,7 +130,6 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["cubicles", "settings"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "profiles"] }),
-      queryClient.invalidateQueries({ queryKey: ["cubicles", "workspaces"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "profile-detail"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "memory-document", "memory"] }),
       queryClient.invalidateQueries({ queryKey: ["cubicles", "apis"] }),
@@ -180,9 +155,9 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
       description: `${profilesQuery.data?.length ?? 0} configured`,
     },
     {
-      id: "workspaces",
-      label: "Workspaces",
-      description: `${workspacesQuery.data?.length ?? 0} available`,
+      id: "working-folder",
+      label: "Working folder",
+      description: "Agent project directory",
     },
     {
       id: "memory",
@@ -257,6 +232,7 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
                 settingsData={settingsQuery.data}
                 providerHints={providerHints}
                 backendState={backendState}
+                workingDirectory={props.workingDirectory}
               />
             </TabsContent>
 
@@ -271,13 +247,11 @@ export function SettingsScreen({ backendState, ...props }: SettingsScreenProps) 
               />
             </TabsContent>
 
-            <TabsContent value="workspaces">
-              <WorkspacesTab
-                workspaces={workspacesQuery.data}
-                effectiveSelectedWorkspaceId={effectiveSelectedWorkspaceId}
-                selectedWorkspace={selectedWorkspace}
-                onSelectWorkspace={setSelectedWorkspaceId}
-                onRefresh={refreshSettingsData}
+            <TabsContent value="working-folder">
+              <WorkingFolderTab
+                key={props.workingDirectory || "none"}
+                workingDirectory={props.workingDirectory}
+                onCommit={props.onWorkingDirectoryCommit}
                 showFeedback={showFeedback}
               />
             </TabsContent>

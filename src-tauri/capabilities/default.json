@@ -54,6 +54,7 @@
     "shell:allow-kill",
     "fs:allow-write-text-file",
     "fs:allow-exists",
-    "fs:scope-download-recursive"
+    "fs:scope-download-recursive",
+    "dialog:default"
   ]
 }

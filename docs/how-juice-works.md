@@ -39,11 +39,13 @@ Toggle via the `BarChart2` button in the header (persisted in `localStorage`).
 
 ### Settings (8 tabs)
 
-Overview · Profiles · Workspaces · Memory · APIs · Extensions · Skills · Harness
+Overview · Profiles · **Working folder** · Memory · APIs · Extensions · Skills · Harness
+
+The **Working folder** tab configures the on-disk directory Cubicles uses for the agent (tools, files, context). Juice persists the path in the browser (`juice:working-directory`) and passes `workspace_path` on session create, chat stream, and slash execution so Cubicles never falls back to implicit workspace IDs.
 
 ## 3. Cubicles runtime
 
-Juice builds and launches the Cubicles server from `JUICE_CUBICLES_ROOT`, then uses its API as the sole runtime boundary. Cubicles owns sessions, profiles, workspaces, tools, approvals, slash commands, and model execution.
+Juice builds and launches the Cubicles server from `JUICE_CUBICLES_ROOT`, then uses its API as the sole runtime boundary. Cubicles owns sessions, profiles, per-session workspace paths, tools, approvals, slash commands, and model execution. The legacy workspace registry API is gone; workspace identity is the normalized absolute path.
 
 ## Startup flow
 
@@ -54,13 +56,14 @@ Juice builds and launches the Cubicles server from `JUICE_CUBICLES_ROOT`, then u
 
 ## Runtime API surface
 
-- `GET /api/settings`
+- `GET/PATCH /api/settings` (default profile only; no `default_workspace_id`)
 - `GET/POST /api/profiles`
-- `GET/POST /api/sessions`, `GET /api/sessions/:id/history`, `POST /api/sessions/:id/activate`
-- `POST /api/chat/stream`, `GET /api/chat/pending/:sessionId`
-- `GET/POST /api/slash`
+- `GET/POST/PATCH /api/sessions`, `GET /api/sessions/:id/history`, `POST /api/sessions/:id/activate` — create/patch use `workspace_path`
+- `POST /api/chat/stream`, `GET /api/chat/pending/:sessionId` — chat body includes `workspace_path`
+- `GET/POST /api/slash` — slash body includes `workspace_path`
 - `GET /api/tools/references`
-- `GET/POST/PUT/DELETE /api/workspaces`
 - `GET/POST/PUT/DELETE /api/apis`
-- `GET /api/memory`
-- `GET/PUT /api/extensions`, `/api/skills`, `/api/harness`
+- `GET/PUT /api/memory/documents/:identifier` (e.g. `memory` / MEMORY.md)
+- `GET /api/tools` (catalog, extensions, references), `GET/POST /api/skills`, `POST /api/upload` (optional; `workspace_path` query)
+
+Juice sets `CUBICLES_SKIP_TRUST_PROMPT=1` on the supervised Cubicles process so trust is not prompted on a non-interactive stdin; users can still manage trust with `cubicles trust` in a terminal.

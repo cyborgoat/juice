@@ -20,7 +20,6 @@ import type {
   CubiclesSkillScanResponse,
   CubiclesSettingsResponse,
   CubiclesToolCatalogResponse,
-  CubiclesWorkspaceResponse,
   ToolReference,
 } from "@/lib/cubicles-api/types"
 import { getCubiclesApiBase } from "@/lib/tauri/cubicles-backend"
@@ -75,58 +74,6 @@ export function fetchCubiclesProfiles() {
   return fetchCubiclesJson<CubiclesProfileSummary[]>("/profiles")
 }
 
-export function fetchCubiclesWorkspaces() {
-  return fetchCubiclesJson<CubiclesWorkspaceResponse[]>("/workspaces")
-}
-
-export function createCubiclesWorkspace(body: {
-  id?: string | null
-  path: string
-  name?: string | null
-  description?: string
-}) {
-  return fetchCubiclesJson<CubiclesWorkspaceResponse>("/workspaces", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  })
-}
-
-export function updateCubiclesWorkspace(
-  id: string,
-  body: {
-    path?: string | null
-    name?: string | null
-    description?: string | null
-    make_default?: boolean
-  }
-) {
-  return fetchCubiclesJson<CubiclesWorkspaceResponse>(`/workspaces/${encodeURIComponent(id)}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  })
-}
-
-export function setCubiclesDefaultWorkspace(id: string) {
-  return fetchCubiclesJson<CubiclesWorkspaceResponse>(
-    `/workspaces/${encodeURIComponent(id)}/default`,
-    {
-      method: "POST",
-    }
-  )
-}
-
-export function deleteCubiclesWorkspace(id: string) {
-  return fetchCubiclesVoid(`/workspaces/${encodeURIComponent(id)}`, {
-    method: "DELETE",
-  })
-}
-
 export function fetchCubiclesProfileDetail(name: string) {
   return fetchCubiclesJson<CubiclesProfileDetailResponse>(`/profiles/${encodeURIComponent(name)}`)
 }
@@ -175,7 +122,6 @@ export function deleteCubiclesProfile(name: string) {
 
 export function updateCubiclesSettings(body: {
   default_profile?: string
-  default_workspace_id?: string
 }) {
   return fetchCubiclesJson<CubiclesSettingsResponse>("/settings", {
     method: "PATCH",
@@ -228,12 +174,14 @@ export function deleteCubiclesSession(
   body?: {
     active_session_id?: string | null
     profile_name?: string | null
+    workspace_path?: string | null
   }
 ) {
   return executeCubiclesSlashCommand({
     command: `/sessions delete ${sessionId}`,
     session_id: body?.active_session_id ?? undefined,
     profile_name: body?.profile_name ?? undefined,
+    workspace_path: body?.workspace_path ?? undefined,
   })
 }
 
@@ -362,7 +310,7 @@ export function stopCubiclesChat(sessionId: string) {
   })
 }
 
-export function createCubiclesSession(name?: string, workspaceId?: string | null) {
+export function createCubiclesSession(name?: string, workspacePath?: string | null) {
   return fetchCubiclesJson<CubiclesSessionResponse>("/sessions", {
     method: "POST",
     headers: {
@@ -370,7 +318,7 @@ export function createCubiclesSession(name?: string, workspaceId?: string | null
     },
     body: JSON.stringify({
       name: name ?? null,
-      workspace_id: workspaceId ?? null,
+      workspace_path: workspacePath?.trim() ? workspacePath : null,
     }),
   })
 }
@@ -383,7 +331,7 @@ export function activateCubiclesSession(sessionId: string) {
 
 export function updateCubiclesSession(
   sessionId: string,
-  body: { name?: string | null; workspace_id?: string | null }
+  body: { name?: string | null; workspace_path?: string | null }
 ) {
   return fetchCubiclesJson<CubiclesSessionResponse>(`/sessions/${encodeURIComponent(sessionId)}`, {
     method: "PATCH",

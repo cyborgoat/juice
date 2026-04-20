@@ -6,7 +6,6 @@ export type CubiclesHealthResponse = {
 export type CubiclesSettingsResponse = {
   default_profile: string | null
   active_session_id: string | null
-  default_workspace_id: string
   cubicles_home: string
   sessions_db: string
   providers: CubiclesProviderSpec[]
@@ -57,12 +56,14 @@ export type CubiclesSessionResponse = {
   id: string
   name: string
   is_active: boolean
+  session_round: number
+  created_at: string
   workspace_id: string
   workspace_name: string
+  workspace_description?: string
   workspace_path: string
   message_count: number
   updated_at: string
-  session_round: number
   context_used_tokens: number
   context_window_tokens: number
   context_usage_percent: number
@@ -177,15 +178,6 @@ export type CubiclesSkillScanResponse = {
   registered: CubiclesSkillResponse[]
 }
 
-export type CubiclesWorkspaceResponse = {
-  id: string
-  path: string
-  name: string
-  description: string
-  exists: boolean
-  is_default: boolean
-}
-
 export type CubiclesSlashCommand = {
   name: string
   description?: string
@@ -199,7 +191,7 @@ export type CubiclesSlashExecutionRequest = {
   command: string
   session_id?: string | null
   profile_name?: string
-  workspace_id?: string | null
+  workspace_path?: string | null
 }
 
 export type CubiclesSlashExecutionResponse = {
@@ -223,7 +215,7 @@ export type CubiclesChatStreamRequest = {
   message?: string | null
   session_id?: string | null
   profile_name?: string
-  workspace_id?: string | null
+  workspace_path?: string | null
   approval_id?: string | null
   approved?: boolean | null
   redirect_message?: string | null

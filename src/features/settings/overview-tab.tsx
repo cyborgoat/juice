@@ -14,14 +14,18 @@ type OverviewTabProps = {
   settingsData: CubiclesSettingsResponse | undefined
   providerHints: CubiclesProviderSpec[]
   backendState: CubiclesBackendState
+  workingDirectory: string
 }
 
-export function OverviewTab({ settingsData, providerHints, backendState }: OverviewTabProps) {
+export function OverviewTab({ settingsData, providerHints, backendState, workingDirectory }: OverviewTabProps) {
   return (
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-2">
         <InfoCard label="Default profile" value={settingsData?.default_profile ?? "Not set"} />
-        <InfoCard label="Default workspace" value={settingsData?.default_workspace_id ?? "Not set"} />
+        <InfoCard
+          label="Juice working folder"
+          value={workingDirectory.trim() ? workingDirectory : "Not set — configure in Working folder"}
+        />
         <InfoCard label="Cubicles home" value={settingsData?.cubicles_home ?? "—"} />
         <InfoCard label="Sessions database" value={settingsData?.sessions_db ?? "—"} />
       </div>

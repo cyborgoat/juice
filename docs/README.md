@@ -22,7 +22,8 @@ Instead, the desktop app:
 
 The current desktop app already supports:
 
-- managed Cubicles backend startup
+- managed Cubicles backend startup (with headless trust skip for the child process)
+- persisted **working folder** selection and `workspace_path` on chat, slash, and sessions
 - real session listing, activation, and create/delete flows
 - real streamed chat replies
 - compact session drawer UI

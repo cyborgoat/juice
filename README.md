@@ -9,7 +9,7 @@ Desktop shell for a personal AI assistant built with **Tauri + Vite + React**, p
 - Collapsible thinking sections, tool preview cards, inline approval controls
 - Session sidebar with search, create, delete, and pending-approval state
 - Advanced Mode: live context usage %, turn summary cards (steps · tools · tokens · errors)
-- Settings: profiles, workspaces, memory, APIs, extensions, skills, harness
+- Settings: profiles, **working folder** (on-disk project directory), memory, APIs, extensions, skills, harness
 - Command palette (`⌘K` / `Ctrl+K`) for quick actions
 
 Juice supervises Cubicles as a local process and communicates over HTTP/SSE. It does **not** import `@cubicles/*` into the app bundle.
@@ -31,13 +31,21 @@ Juice supervises Cubicles as a local process and communicates over HTTP/SSE. It 
                 │ 127.0.0.1:7799
 ┌───────────────▼─────────────────────┐
 │  Cubicles runtime                   │
-│  – sessions, profiles, workspaces   │
+│  – sessions, profiles, workspace path │
 │  – tools, skills, approvals         │
 │  – model / provider execution       │
 └─────────────────────────────────────┘
 ```
 
 See [`docs/how-juice-works.md`](docs/how-juice-works.md) and [`docs/cubicles-integration.md`](docs/cubicles-integration.md) for more detail.
+
+## Working folder
+
+Cubicles treats the agent workspace as a **real directory on disk**. Before you can chat, Juice needs that path:
+
+1. Open **Settings → Working folder**, choose or paste an absolute path (desktop builds include a folder picker).
+2. Juice stores the choice in `localStorage` (`juice:working-directory`) and restores it on the next launch until you change it.
+3. New sessions are created with that path; chat and slash requests send `workspace_path` so Cubicles can resolve the session. Trust for folders is handled by Cubicles (`cubicles trust`); the supervised server sets `CUBICLES_SKIP_TRUST_PROMPT=1` so headless startup is not blocked.
 
 ## Setup
 
