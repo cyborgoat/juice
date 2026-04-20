@@ -3,6 +3,9 @@ import { type KeyboardEvent, useMemo, useRef, useState } from "react"
 
 const isMac = navigator.userAgent.includes("Mac")
 
+/** Ignore Enter-to-send shortly after the last edit to reduce accidental sends. */
+const ENTER_SEND_GUARD_MS = 500
+
 import { Button } from "@/components/ui/button"
 import type { CubiclesSlashCommand, ToolReference } from "@/lib/cubicles-api/types"
 import { cn } from "@/lib/utils"
@@ -37,6 +40,7 @@ export function ChatComposer({
   const [draft, setDraft] = useState("")
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const lastContentEditAtRef = useRef(0)
 
   const slashSuggestions = useMemo(
     () =>
@@ -87,6 +91,7 @@ export function ChatComposer({
   function applySuggestion(index: number) {
     const suggestion = activeSuggestions[index]
     if (!suggestion) return
+    lastContentEditAtRef.current = Date.now()
     setDraft(suggestion.nextValue)
   }
 
@@ -102,6 +107,10 @@ export function ChatComposer({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
+      const sinceEdit = Date.now() - lastContentEditAtRef.current
+      if (sinceEdit < ENTER_SEND_GUARD_MS) {
+        return
+      }
       submit()
       return
     }
@@ -128,6 +137,7 @@ export function ChatComposer({
 
     if (event.key === "Escape") {
       event.preventDefault()
+      lastContentEditAtRef.current = Date.now()
       setDraft(draft.trimEnd())
     }
   }
@@ -192,6 +202,7 @@ export function ChatComposer({
           ref={textareaRef}
           value={draft}
           onChange={(event) => {
+            lastContentEditAtRef.current = Date.now()
             setDraft(event.target.value)
             setSelectedSuggestionIndex(0)
           }}
