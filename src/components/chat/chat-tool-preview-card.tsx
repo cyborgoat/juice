@@ -1,7 +1,6 @@
 import { Terminal } from "lucide-react"
 import { motion } from "motion/react"
 
-import { CopyButton } from "@/components/chat/code-block"
 import { ChatDetailDialog } from "@/components/chat/chat-detail-dialog"
 import { TextShimmer } from "@/components/ui/text-shimmer"
 import type { TranscriptEntry } from "@/lib/types"
@@ -39,14 +38,7 @@ export function ChatToolPreviewCard({
       >
         <div className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px]">
           <Terminal className="size-3 shrink-0 text-primary/60" />
-          <span className="flex-1 font-medium">
-            {isGenerating ? (
-              <TextShimmer className="text-primary/70">Generating tool call…</TextShimmer>
-            ) : (
-              <span className="text-primary/70">Tool preview</span>
-            )}
-          </span>
-          <span className="truncate text-primary/50 max-sm:hidden">{entry.commandText}</span>
+          <span className="flex-1 font-medium text-primary/70">Tool preview</span>
           <span className="text-muted-foreground">{entry.timestamp}</span>
           <button
             type="button"
@@ -55,7 +47,29 @@ export function ChatToolPreviewCard({
           >
             View
           </button>
-          <CopyButton text={entry.content} />
+        </div>
+
+        <div className="border-t border-primary/10 px-2.5 py-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-background/70 px-2 py-1 text-[10px] text-primary/80">
+              <span className="size-1.5 rounded-full bg-primary/60 animate-pulse" />
+              {isGenerating ? (
+                <TextShimmer>Generating tool call</TextShimmer>
+              ) : (
+                <span>Tool call ready</span>
+              )}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2 py-1 text-[10px] text-muted-foreground">
+              {isGenerating ? (
+                <TextShimmer>Open View to inspect the live draft</TextShimmer>
+              ) : (
+                <span>Open View to inspect the generated draft</span>
+              )}
+            </span>
+          </div>
+          <div className="mt-2 text-[11px] leading-5 text-muted-foreground/80">
+            Generated tool-call content is hidden on the card to keep the transcript compact.
+          </div>
         </div>
       </motion.div>
 
