@@ -3,9 +3,6 @@ import { type KeyboardEvent, useMemo, useRef, useState } from "react"
 
 const isMac = navigator.userAgent.includes("Mac")
 
-/** Ignore Enter-to-send shortly after the last edit to reduce accidental sends. */
-const ENTER_SEND_GUARD_MS = 150
-
 import { Button } from "@/components/ui/button"
 import type { CubiclesSlashCommand, ToolReference } from "@/lib/cubicles-api/types"
 import { cn } from "@/lib/utils"
@@ -40,7 +37,6 @@ export function ChatComposer({
   const [draft, setDraft] = useState("")
   const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const lastContentEditAtRef = useRef(0)
 
   const slashSuggestions = useMemo(
     () =>
@@ -79,10 +75,12 @@ export function ChatComposer({
   }, [atPrefix, toolReferences, draft])
 
   const activeSuggestions = atSuggestions.length > 0 ? atSuggestions : slashSuggestions
+  const textareaDisabled = disabled
+  const submitBlocked = disabled || isStreaming
 
   function submit() {
     const trimmedDraft = draft.trim()
-    if (!trimmedDraft || disabled) return
+    if (!trimmedDraft || submitBlocked) return
     onSubmit(trimmedDraft)
     setDraft("")
     setSelectedSuggestionIndex(0)
@@ -91,7 +89,6 @@ export function ChatComposer({
   function applySuggestion(index: number) {
     const suggestion = activeSuggestions[index]
     if (!suggestion) return
-    lastContentEditAtRef.current = Date.now()
     setDraft(suggestion.nextValue)
   }
 
@@ -107,10 +104,6 @@ export function ChatComposer({
 
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
-      const sinceEdit = Date.now() - lastContentEditAtRef.current
-      if (sinceEdit < ENTER_SEND_GUARD_MS) {
-        return
-      }
       submit()
       return
     }
@@ -137,7 +130,6 @@ export function ChatComposer({
 
     if (event.key === "Escape") {
       event.preventDefault()
-      lastContentEditAtRef.current = Date.now()
       setDraft(draft.trimEnd())
     }
   }
@@ -208,12 +200,11 @@ export function ChatComposer({
           ref={textareaRef}
           value={draft}
           onChange={(event) => {
-            lastContentEditAtRef.current = Date.now()
             setDraft(event.target.value)
             setSelectedSuggestionIndex(0)
           }}
           onKeyDown={onKeyDown}
-          disabled={disabled || isStreaming}
+          disabled={textareaDisabled}
           placeholder={placeholder}
           rows={2}
           className="min-h-[3rem] max-h-36 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-xs outline-none placeholder:text-muted-foreground/50 disabled:opacity-50"
@@ -236,7 +227,7 @@ export function ChatComposer({
             variant={isStreaming ? "destructive" : "default"}
             className="size-7 rounded-full"
             onClick={isStreaming ? onStop : submit}
-            disabled={disabled || (isStreaming && !onStop)}
+            disabled={textareaDisabled || (isStreaming && !onStop)}
             title={sendLabel}
             aria-label={sendLabel}
           >

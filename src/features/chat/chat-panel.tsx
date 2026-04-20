@@ -8,7 +8,6 @@ import {
   activateCubiclesSession,
   createCubiclesSession,
   deleteCubiclesSession,
-  executeCubiclesSlashCommand,
   fetchCubiclesPendingApproval,
   fetchCubiclesSessionHistory,
   fetchCubiclesProfiles,
@@ -18,6 +17,7 @@ import {
   fetchCubiclesToolReferences,
   stopCubiclesChat,
   streamCubiclesChat,
+  streamCubiclesSlashCommand,
   updateCubiclesSession,
 } from "@/lib/cubicles-api/client"
 import type {
@@ -52,6 +52,7 @@ import {
   resolvePreferredSessionId,
   setToolEntryByApprovalId,
   syncPendingApprovalEntry,
+  upsertEntry,
 } from "./transcript-helpers"
 
 function HeaderMetaChip({ label, value }: { label: string; value: string }) {
@@ -65,6 +66,25 @@ function HeaderMetaChip({ label, value }: { label: string; value: string }) {
 
 const logger = createLogger("chat-panel")
 const NO_PROFILE_ERROR = "No usable Cubicles profile is available yet. Configure one in Settings → Profiles first."
+
+function inferSlashWorkingLabel(command: string, latestLine?: string) {
+  const trimmed = command.trim()
+  const [head = "", sub = ""] = trimmed.split(/\s+/)
+  const lowerHead = head.toLowerCase()
+  const lowerSub = sub.toLowerCase()
+  let activity = "Processing"
+
+  if (lowerHead === "/compact") activity = "Compacting"
+  else if (lowerHead === "/extensions" && lowerSub === "generate") activity = "Generating"
+  else if (lowerHead === "/extensions" && (lowerSub === "delete" || lowerSub === "remove")) activity = "Deleting"
+  else if (lowerHead === "/extensions" && lowerSub === "add") activity = "Adding"
+  else if (lowerHead === "/memory" || lowerHead === "/skills" || lowerHead === "/api" || lowerHead === "/profile") activity = "Updating"
+  else if (lowerHead === "/new" || lowerHead === "/session" || lowerHead === "/sessions") activity = "Switching"
+
+  const tokenMatch = latestLine?.match(/\[(?:~)?([\d,]+)\s+tokens\]/i)
+  const tokenSuffix = tokenMatch?.[1] ? ` [${tokenMatch[1]} tokens]` : ""
+  return `${activity} ${head || "command"}…${tokenSuffix}`
+}
 
 export function ChatPanel() {
   const queryClient = useQueryClient()
@@ -460,11 +480,8 @@ export function ChatPanel() {
 
     setIsMutatingSession(true)
     try {
-      const remoteSessions = sessionsQuery.data ?? []
-      const hasOtherRemoteSessions = remoteSessions.some((entry) => entry.id !== sessionId)
-
       logger.info("Deleting session", { sessionId, title: session.title })
-      const result = await deleteCubiclesSession(sessionId)
+      await deleteCubiclesSession(sessionId)
 
       setTranscripts((previousTranscripts) => {
         const nextTranscripts = { ...previousTranscripts }
@@ -472,25 +489,17 @@ export function ChatPanel() {
         return nextTranscripts
       })
 
-      const nextSessionId =
-        hasOtherRemoteSessions && result.session_id && result.session_id !== sessionId
-          ? result.session_id
-          : ""
-      setSelectedSessionId(nextSessionId)
+      if (selectedSessionId === sessionId) {
+        setSelectedSessionId("")
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["cubicles", "sessions"] }),
         queryClient.invalidateQueries({ queryKey: ["cubicles", "settings"] }),
-        nextSessionId
-          ? queryClient.invalidateQueries({
-              queryKey: ["cubicles", "session-history", nextSessionId],
-            })
-          : Promise.resolve(),
       ])
 
       logger.info("Deleted session", {
         sessionId,
-        nextSessionId: nextSessionId || null,
       })
       setDeleteCandidateSessionId(null)
     } catch (error) {
@@ -810,38 +819,84 @@ export function ChatPanel() {
     setIsStreaming(true)
 
     let targetSessionId = sessionId
+    const streamId = crypto.randomUUID()
+    const commandEntryId = `slash-command-${streamId}`
+    const resultEntryId = `slash-result-${streamId}`
     logger.info("Executing slash command", { sessionId, command, profileName })
 
     try {
-      const result = await executeCubiclesSlashCommand({
-        command,
-        session_id: sessionId,
-        profile_name: profileName,
-        workspace_path: workingDirectory,
-      })
-      targetSessionId = result.session_id || sessionId
-      const slashOutput =
-        result.output.length > 0
-          ? result.output.join("\n\n")
-          : "_Command completed without output._"
-
       setTranscripts((previousTranscripts) => {
-        const withCommand = appendEntry(previousTranscripts, targetSessionId, {
-          id: `slash-command-${crypto.randomUUID()}`,
+        const withCommand = appendEntry(previousTranscripts, sessionId, {
+          id: commandEntryId,
           type: "slash",
           variant: "command",
           content: command,
           timestamp: "Now",
         })
-
-        return appendEntry(withCommand, targetSessionId, {
-          id: `slash-result-${crypto.randomUUID()}`,
-          type: "slash",
-          variant: "result",
-          content: slashOutput,
-          timestamp: "Now",
-        })
+        return withCommand
       })
+      setShowWorkingIndicator(inferSlashWorkingLabel(command))
+
+      for await (const event of streamCubiclesSlashCommand({
+        command,
+        session_id: sessionId,
+        profile_name: profileName,
+        workspace_path: workingDirectory,
+      })) {
+        if (event.type === "output") {
+          setTranscripts((previousTranscripts) =>
+            upsertEntry(previousTranscripts, sessionId, resultEntryId, (currentEntry) => ({
+              id: resultEntryId,
+              type: "slash",
+              variant: "result",
+              content:
+                currentEntry?.type === "slash" && currentEntry.variant === "result" && currentEntry.content
+                  ? `${currentEntry.content}\n\n${event.line}`
+                  : event.line,
+              timestamp: "Now",
+            }))
+          )
+          setShowWorkingIndicator(inferSlashWorkingLabel(command, event.line))
+          continue
+        }
+
+        if (event.type === "done") {
+          targetSessionId = event.session_id || sessionId
+          if (targetSessionId !== sessionId) {
+            setTranscripts((previousTranscripts) => {
+              const fromEntries = [...(previousTranscripts[sessionId] ?? [])]
+              const movedEntries = fromEntries.filter(
+                (entry) => entry.id === commandEntryId || entry.id === resultEntryId
+              )
+              const remainingEntries = fromEntries.filter(
+                (entry) => entry.id !== commandEntryId && entry.id !== resultEntryId
+              )
+              return {
+                ...previousTranscripts,
+                [sessionId]: remainingEntries,
+                [targetSessionId]: [...(previousTranscripts[targetSessionId] ?? []), ...movedEntries],
+              }
+            })
+          }
+
+          const slashOutput =
+            event.output.length > 0
+              ? event.output.join("\n\n")
+              : "_Command completed without output._"
+          setTranscripts((previousTranscripts) =>
+            upsertEntry(previousTranscripts, targetSessionId, resultEntryId, () => ({
+              id: resultEntryId,
+              type: "slash",
+              variant: "result",
+              content: slashOutput,
+              timestamp: "Now",
+            }))
+          )
+          continue
+        }
+
+        throw new Error(event.message)
+      }
 
       if (targetSessionId !== selectedSessionId) {
         setSelectedSessionId(targetSessionId)
@@ -1328,10 +1383,7 @@ export function ChatPanel() {
                       onStop={() => {
                         void handleStopAction()
                       }}
-                      disabled={
-                        backendState.mode === "error" ||
-                        (backendState.mode === "ready" && !workspaceReady)
-                      }
+                      disabled={backendState.mode === "error"}
                       isStreaming={isStreaming && !awaitingApprovalEntry}
                       isAwaitingApproval={Boolean(awaitingApprovalEntry?.approvalId)}
                       slashCommands={slashCommandsQuery.data?.commands ?? []}

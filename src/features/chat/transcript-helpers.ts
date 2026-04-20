@@ -15,6 +15,7 @@ type ToolEntry = Extract<TranscriptEntry, { type: "tool" }>
 export type Transcripts = Record<string, TranscriptEntry[]>
 
 const GENERIC_TOOL_DETAILS = new Set(["", "Tool execution update", "Running..."])
+const TOOL_ACTIVITY_PREFIX = /^(reading|writing|editing|compacting|generating|deleting|updating|executing|running|processing):\s*/i
 
 function firstMeaningfulLine(value: string | undefined): string | null {
   if (!value) return null
@@ -22,6 +23,10 @@ function firstMeaningfulLine(value: string | undefined): string | null {
     .split("\n")
     .map((line) => line.trim())
     .find(Boolean) ?? null
+}
+
+function stripToolActivityPrefix(value: string): string {
+  return value.replace(TOOL_ACTIVITY_PREFIX, "").trim()
 }
 
 export function inferToolCategory(toolName: string): ToolCategory {
@@ -77,7 +82,7 @@ function buildToolCommandText(toolName: string, detail: string, payload?: Record
     }
   }
 
-  const cleanDetail = detail.trim()
+  const cleanDetail = stripToolActivityPrefix(detail.trim())
   return cleanDetail ? `${toolName} ${cleanDetail}` : toolName
 }
 

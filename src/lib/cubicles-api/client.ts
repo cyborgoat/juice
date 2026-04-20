@@ -12,8 +12,8 @@ import type {
   CubiclesProfileUpsertRequest,
   CubiclesProfileSummary,
   CubiclesSlashExecutionRequest,
-  CubiclesSlashExecutionResponse,
   CubiclesSlashListResponse,
+  CubiclesSlashStreamEvent,
   CubiclesSessionHistoryMessage,
   CubiclesSessionResponse,
   CubiclesSkillResponse,
@@ -159,31 +159,31 @@ export function fetchCubiclesSlashCommands() {
   return fetchCubiclesJson<CubiclesSlashListResponse>("/slash")
 }
 
-export function executeCubiclesSlashCommand(body: CubiclesSlashExecutionRequest) {
-  return fetchCubiclesJson<CubiclesSlashExecutionResponse>("/slash", {
+export async function* streamCubiclesSlashCommand(
+  body: CubiclesSlashExecutionRequest,
+  signal?: AbortSignal
+): AsyncGenerator<CubiclesSlashStreamEvent> {
+  const response = await fetch(`${getCubiclesApiBase()}/slash/stream`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
+    signal,
   })
+
+  if (!response.ok || !response.body) {
+    throw new Error(`Cubicles slash stream failed: ${response.status} ${response.statusText}`)
+  }
+
+  yield* streamSseResponse<CubiclesSlashStreamEvent>(response)
 }
 
 export function deleteCubiclesSession(
   sessionId: string
 ) {
-  return fetch(`${getCubiclesApiBase()}/sessions/${encodeURIComponent(sessionId)}`, {
+  return fetchCubiclesVoid(`/sessions/${encodeURIComponent(sessionId)}`, {
     method: "DELETE",
-  }).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(`Cubicles request failed: ${response.status} ${response.statusText}`)
-    }
-
-    if (response.status === 204) {
-      return { session_id: null }
-    }
-
-    return (await response.json()) as { session_id?: string | null }
   })
 }
 
@@ -361,6 +361,16 @@ export async function* streamCubiclesChat(
     throw new Error(`Cubicles chat stream failed: ${response.status} ${response.statusText}`)
   }
 
+  yield* streamSseResponse<CubiclesChatEvent>(response)
+}
+
+async function* streamSseResponse<TEvent extends { type: string }>(
+  response: Response
+): AsyncGenerator<TEvent> {
+  if (!response.body) {
+    return
+  }
+
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
@@ -376,7 +386,7 @@ export async function* streamCubiclesChat(
     buffer = chunks.pop() ?? ""
 
     for (const chunk of chunks) {
-      const event = parseSseChunk(chunk)
+      const event = parseSseChunk<TEvent>(chunk)
       if (event) {
         yield event
       }
@@ -384,14 +394,14 @@ export async function* streamCubiclesChat(
   }
 
   if (buffer.trim()) {
-    const event = parseSseChunk(buffer)
+    const event = parseSseChunk<TEvent>(buffer)
     if (event) {
       yield event
     }
   }
 }
 
-function parseSseChunk(chunk: string): CubiclesChatEvent | null {
+function parseSseChunk<TEvent extends { type: string }>(chunk: string): TEvent | null {
   const lines = chunk.split("\n")
   let eventName = ""
   let data = ""
@@ -408,6 +418,6 @@ function parseSseChunk(chunk: string): CubiclesChatEvent | null {
     return null
   }
 
-  const parsed = JSON.parse(data) as Omit<CubiclesChatEvent, "type">
-  return { type: eventName, ...parsed } as CubiclesChatEvent
+  const parsed = JSON.parse(data) as Omit<TEvent, "type">
+  return { type: eventName, ...parsed } as TEvent
 }

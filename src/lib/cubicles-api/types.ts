@@ -194,12 +194,16 @@ export type CubiclesSlashExecutionRequest = {
   workspace_path?: string | null
 }
 
-export type CubiclesSlashExecutionResponse = {
-  output: string[]
-  session_id: string
-  workspace_path: string
-  continue: boolean
-}
+export type CubiclesSlashStreamEvent =
+  | { type: "output"; line: string }
+  | {
+      type: "done"
+      output: string[]
+      session_id: string
+      workspace_path: string
+      continue: boolean
+    }
+  | { type: "error"; message: string }
 
 export type CubiclesPendingApproval = {
   approvalId: string
