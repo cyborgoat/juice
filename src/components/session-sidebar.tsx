@@ -99,7 +99,7 @@ export function SessionSidebar({
         </div>
 
         <Button className="h-9 w-full justify-between rounded-2xl px-3.5 text-[13px] font-semibold shadow-sm" size="sm" onClick={onCreateSession}>
-          New draft
+          New chat
           <MessageSquarePlus className="size-4" />
         </Button>
 

@@ -133,8 +133,8 @@ export function formatTimestamp(value: string) {
     : parsed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 }
 
-export function buildSessionTitle(totalSessions: number) {
-  return `New workspace thread ${totalSessions + 1}`
+export function buildSessionTitle() {
+  return "New Chat"
 }
 
 export function buildVisibleSessions(

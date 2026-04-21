@@ -12,6 +12,14 @@ type Segment = {
   text: string
 }
 
+/** Must stay in sync with `transcript-helpers` stream + history markers. */
+const THINK_OPEN = "<think>"
+const THINK_CLOSE = "</think>"
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
 function stripToolBlocks(text: string) {
   let result = text.replace(/<tool>[\s\S]*?<\/tool>/g, "")
   const openIdx = result.lastIndexOf("<tool>")
@@ -22,13 +30,16 @@ function stripToolBlocks(text: string) {
 }
 
 function normalizeContentSegment(text: string) {
-  return text.replace(/<\/?think>/g, "")
+  return text.replaceAll(THINK_OPEN, "").replaceAll(THINK_CLOSE, "")
 }
 
 function parseThinkBlocks(content: string): Segment[] {
   const cleaned = stripToolBlocks(content)
   const segments: Segment[] = []
-  const re = /<think>([\s\S]*?)<\/think>/g
+  const re = new RegExp(
+    `${escapeRegExp(THINK_OPEN)}([\\s\\S]*?)${escapeRegExp(THINK_CLOSE)}`,
+    "g"
+  )
   let lastIndex = 0
   let match: RegExpExecArray | null
 
@@ -46,10 +57,20 @@ function parseThinkBlocks(content: string): Segment[] {
   }
 
   const rest = cleaned.slice(lastIndex)
-  if (rest) {
-    segments.push({ type: "content", text: normalizeContentSegment(rest) })
+  if (!rest) {
+    return segments
   }
 
+  // Live stream: thinking deltas append inside an open block before `</think>` exists.
+  if (rest.startsWith(THINK_OPEN) && !rest.includes(THINK_CLOSE)) {
+    const inner = rest.slice(THINK_OPEN.length)
+    if (inner.trim()) {
+      segments.push({ type: "think", text: inner })
+    }
+    return segments
+  }
+
+  segments.push({ type: "content", text: normalizeContentSegment(rest) })
   return segments
 }
 
@@ -107,7 +128,7 @@ const markdownComponents: Components = {
 }
 
 function ThinkBlock({ text }: { text: string }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   return (
     <div className="mb-1">
       <button

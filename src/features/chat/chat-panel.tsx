@@ -418,22 +418,20 @@ export function ChatPanel() {
   async function handleCreateSession() {
     setActiveView("chat")
     const id = crypto.randomUUID()
-    const title = buildSessionTitle(visibleSessions.length)
+    const title = buildSessionTitle()
     const session: SessionSummary = {
       id,
       title,
-      workspace: workspaceReady ? workingDirectory.split("/").filter(Boolean).at(-1) ?? "Draft" : "Draft",
-      preview: "Draft session. A real Cubicles session will start on the first message.",
+      workspace: workspaceReady ? workingDirectory.split("/").filter(Boolean).at(-1) ?? "" : "",
+      preview: "",
       updatedAtLabel: "Just now",
       status: "idle",
     }
 
     setLocalSessions((previousSessions) => [session, ...previousSessions])
-    setTranscripts((prev) =>
-      appendEntry(prev, id, buildSystemEntry("Draft session", "This draft stays local until you send the first message or slash command. Juice will create the real Cubicles session at that point."))
-    )
+    setTranscripts((prev) => ({ ...prev, [id]: [] }))
     setSelectedSessionId(id)
-    logger.info("Created local draft session", { sessionId: id })
+    logger.info("Created local session", { sessionId: id })
   }
 
   async function handleSelectSession(sessionId: string) {
@@ -1194,7 +1192,7 @@ export function ChatPanel() {
                       value={
                         (workspaceReady ? workingDirectory : null) ??
                         activeRemoteSession?.workspace_path ??
-                        activeSession?.workspace ??
+                        (activeSession?.workspace?.trim() ? activeSession.workspace : null) ??
                         "Not selected"
                       }
                     />
