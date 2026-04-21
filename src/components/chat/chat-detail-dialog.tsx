@@ -16,6 +16,10 @@ type ChatDetailDialogProps = {
   contentLabel?: string
 }
 
+function normalizeMultilineContent(value: string) {
+  return value.replaceAll("\\r\\n", "\n").replaceAll("\\n", "\n")
+}
+
 export function ChatDetailDialog({
   open,
   onOpenChange,
@@ -24,6 +28,8 @@ export function ChatDetailDialog({
   content,
   contentLabel = "Details",
 }: ChatDetailDialogProps) {
+  const normalizedContent = normalizeMultilineContent(content)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl gap-0 overflow-hidden p-0 sm:max-w-3xl">
@@ -35,15 +41,15 @@ export function ChatDetailDialog({
                 <DialogDescription className="mt-1">{description}</DialogDescription>
               ) : null}
             </div>
-            <CopyButton text={content} />
+            <CopyButton text={normalizedContent} />
           </div>
         </DialogHeader>
         <div className="flex min-h-0 flex-col gap-2 px-5 py-4">
-          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+          <div className="text-sm font-medium text-foreground/80">
             {contentLabel}
           </div>
           <pre className="max-h-[65vh] overflow-auto rounded-xl border border-border/70 bg-background/70 p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-            {content}
+            {normalizedContent}
           </pre>
         </div>
       </DialogContent>

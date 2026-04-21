@@ -38,7 +38,7 @@ export function ChatTranscript({
   const lastEntry = entries[entries.length - 1]
   const hasInlineGenerationStatus =
     lastEntry?.type === "tool-preview" ||
-    lastEntry?.type === "tool" ||
+    (lastEntry?.type === "tool" && lastEntry.status !== "completed") ||
     (lastEntry?.type === "message" && lastEntry.role === "assistant")
   const shouldShowWorkingIndicator =
     showWorkingIndicator && !(isStreaming && hasInlineGenerationStatus)

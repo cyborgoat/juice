@@ -67,11 +67,11 @@ export function CodeBlock({ language, children }: CodeBlockProps) {
       </div>
       {highlighted ? (
         <div
-          className="max-h-96 overflow-auto px-3 pb-2.5 pt-2 text-sm leading-6 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0"
+          className="max-h-96 overflow-auto px-3 pb-2.5 pt-2 text-[11px] leading-5 [&>pre]:!bg-transparent [&>pre]:!p-0 [&>pre]:!m-0"
           dangerouslySetInnerHTML={{ __html: highlighted }}
         />
       ) : (
-        <pre className="max-h-96 overflow-auto px-3 pb-2.5 pt-2 text-sm leading-6">
+        <pre className="max-h-96 overflow-auto px-3 pb-2.5 pt-2 text-[11px] leading-5">
           <code>{children}</code>
         </pre>
       )}

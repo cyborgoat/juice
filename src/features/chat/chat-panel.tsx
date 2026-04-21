@@ -197,9 +197,13 @@ export function ChatPanel() {
   )
 
   const activeSession = useMemo(
-    () =>
-      visibleSessions.find((session) => session.id === selectedSessionId) ??
-      visibleSessions[0],
+    () => {
+      if (selectedSessionId) {
+        return visibleSessions.find((session) => session.id === selectedSessionId)
+      }
+
+      return visibleSessions[0]
+    },
     [selectedSessionId, visibleSessions]
   )
 
@@ -274,7 +278,7 @@ export function ChatPanel() {
     queryFn: () => fetchCubiclesSessionHistory(activeSession!.id),
     enabled:
       backendState.mode === "ready" &&
-      Boolean(activeSession?.id) &&
+      activeSession != null &&
       remoteSessionIds.has(activeSession.id),
   })
 
@@ -283,7 +287,7 @@ export function ChatPanel() {
     queryFn: () => fetchCubiclesPendingApproval(activeSession!.id),
     enabled:
       backendState.mode === "ready" &&
-      Boolean(activeSession?.id) &&
+      activeSession != null &&
       remoteSessionIds.has(activeSession.id) &&
       activeView === "chat",
     refetchOnWindowFocus: true,
@@ -519,7 +523,18 @@ export function ChatPanel() {
     const createdSession = await createCubiclesSession(session.title, workingDirectory)
     await activateCubiclesSession(createdSession.id)
     setLocalSessions((previousSessions) =>
-      previousSessions.filter((entry) => entry.id !== session.id)
+      previousSessions.map((entry) =>
+        entry.id === session.id
+          ? {
+              ...entry,
+              id: createdSession.id,
+              title: createdSession.name,
+              workspace: createdSession.workspace_name,
+              updatedAtLabel: new Date(createdSession.updated_at).toLocaleString(),
+              status: createdSession.is_active ? "live" : "ready",
+            }
+          : entry
+      )
     )
     setTranscripts((previousTranscripts) => {
       const nextTranscripts = { ...previousTranscripts }

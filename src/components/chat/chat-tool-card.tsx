@@ -18,6 +18,30 @@ type ChatToolCardProps = {
   onStop?: () => void
 }
 
+function normalizeMultilineContent(value: string) {
+  return value.replaceAll("\\r\\n", "\n").replaceAll("\\n", "\n")
+}
+
+function parseToolArguments(value?: string) {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as Record<string, unknown>
+    return parsed && typeof parsed === "object" ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+function getStringField(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "string" && value.trim()) {
+      return value
+    }
+  }
+  return null
+}
+
 export function ChatToolCard({
   entry,
   approvalBusy = false,
@@ -26,12 +50,38 @@ export function ChatToolCard({
   onStop,
 }: ChatToolCardProps) {
   const [dialogOpen, setDialogOpen] = useState(false)
+  const normalizedOutput = entry.output ? normalizeMultilineContent(entry.output) : undefined
+  const parsedArguments = parseToolArguments(entry.argumentsText)
+  const writeFileContent = parsedArguments
+    ? getStringField(parsedArguments, ["content", "text", "new_content", "body"])
+    : null
+  const writeFilePath = parsedArguments
+    ? getStringField(parsedArguments, ["path", "file_path", "filepath", "target_file"])
+    : null
+  const isWriteFilePreview =
+    entry.category === "file" &&
+    /write|edit|create|overwrite|replace/i.test(entry.name) &&
+    Boolean(writeFileContent)
+  const metadataArgumentsText = (() => {
+    if (!parsedArguments || !isWriteFilePreview) {
+      return entry.argumentsText
+    }
+
+    const nextArguments = { ...parsedArguments }
+    delete nextArguments.content
+    delete nextArguments.text
+    delete nextArguments.new_content
+    delete nextArguments.body
+    return Object.keys(nextArguments).length > 0
+      ? JSON.stringify(nextArguments, null, 2)
+      : undefined
+  })()
 
   const isRunning = entry.status === "running"
   const isAwaiting = entry.status === "awaiting-approval"
   const isCompleted = entry.status === "completed"
-  const showOutput = isCompleted && entry.output && entry.output !== "Tool execution was skipped."
-  const showArguments = Boolean(entry.argumentsText?.trim())
+  const showOutput = isCompleted && normalizedOutput && normalizedOutput !== "Tool execution was skipped."
+  const showArguments = Boolean(metadataArgumentsText?.trim())
 
   return (
     <>
@@ -46,7 +96,7 @@ export function ChatToolCard({
           )}
           <button
             type="button"
-            className="min-w-0 flex-1 truncate text-left font-mono text-xs"
+            className="min-w-0 flex-1 truncate text-left font-mono text-[11px] leading-4"
             onClick={() => setDialogOpen(true)}
             title={entry.commandText}
           >
@@ -68,20 +118,43 @@ export function ChatToolCard({
           )}
         </div>
 
-        <div className="border-t border-border/50 px-2.5 py-1 text-[11px] text-muted-foreground">
+        <div className="border-t border-border/50 px-2.5 py-1 text-[10px] leading-4 text-muted-foreground">
           {isRunning ? <TextShimmer>{entry.statusMessage}</TextShimmer> : entry.statusMessage}
         </div>
 
         {isAwaiting && showArguments ? (
           <div className="border-t border-border/50">
+            {isWriteFilePreview ? (
+              <div className="mx-2.5 mt-2 rounded-md border border-border/60 bg-background/70 px-2.5 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70">
+                      File draft
+                    </p>
+                    <p className="truncate font-mono text-[11px] leading-4 text-foreground/85" title={writeFilePath ?? undefined}>
+                      {writeFilePath ?? entry.name}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 rounded-full px-3 text-xs"
+                    onClick={() => setDialogOpen(true)}
+                  >
+                    Preview
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <details className="group/args">
               <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2.5 py-1 text-[10px] uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-muted-foreground">
                 <ShieldCheck className="size-2.5 text-amber-500" />
-                <span>Arguments</span>
+                <span>{isWriteFilePreview ? "Metadata" : "Arguments"}</span>
                 <ChevronRight className="ml-auto size-3 transition-transform group-open/args:rotate-90" />
               </summary>
               <pre className="mx-2.5 mb-1.5 max-h-40 overflow-y-auto rounded-md bg-background/80 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-all">
-                {entry.argumentsText}
+                {metadataArgumentsText}
               </pre>
             </details>
 
@@ -135,10 +208,10 @@ export function ChatToolCard({
               </span>
               <CopyButton text={entry.output ?? ""} />
               <ChevronRight className="ml-auto size-3 transition-transform group-open/out:rotate-90" />
-            </summary>
-            <pre className="mx-2.5 mb-1.5 max-h-52 resize-y overflow-y-auto rounded-md bg-background/80 px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
-              {entry.output}
-            </pre>
+              </summary>
+              <pre className="mx-2.5 mb-1.5 max-h-52 resize-y overflow-y-auto rounded-md bg-background/80 px-2.5 py-1.5 font-mono text-[11px] leading-4 text-muted-foreground whitespace-pre-wrap break-words">
+                {normalizedOutput}
+              </pre>
           </details>
         ) : null}
       </div>
@@ -148,8 +221,12 @@ export function ChatToolCard({
         onOpenChange={setDialogOpen}
         title={entry.name}
         description={entry.statusMessage}
-        content={entry.argumentsText || entry.output || entry.commandText}
-        contentLabel={entry.argumentsText ? "Arguments" : entry.output ? "Output" : "Command"}
+        content={isWriteFilePreview ? writeFileContent ?? entry.commandText : entry.argumentsText || normalizedOutput || entry.commandText}
+        contentLabel={
+          isWriteFilePreview
+            ? (writeFilePath ? `Preview · ${writeFilePath}` : "Preview")
+            : entry.argumentsText ? "Arguments" : entry.output ? "Output" : "Command"
+        }
       />
     </>
   )

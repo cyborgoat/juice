@@ -15,6 +15,9 @@ type Segment = {
 /** Must stay in sync with `transcript-helpers` stream + history markers. */
 const THINK_OPEN = "<think>"
 const THINK_CLOSE = "</think>"
+const MARKDOWN_STACK_CLASS = "space-y-1"
+const MARKDOWN_PARAGRAPH_CLASS = "leading-5 [&:not(:first-child)]:mt-1"
+const MARKDOWN_LIST_CLASS = "mt-1 ml-5 space-y-0.5"
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -75,10 +78,10 @@ function parseThinkBlocks(content: string): Segment[] {
 }
 
 const markdownComponents: Components = {
-  p: ({ children }) => <p className="leading-6 [&:not(:first-child)]:mt-3">{children}</p>,
-  ul: ({ children }) => <ul className="mt-3 ml-5 list-disc space-y-1.5">{children}</ul>,
-  ol: ({ children }) => <ol className="mt-3 ml-5 list-decimal space-y-1.5">{children}</ol>,
-  li: ({ children }) => <li className="leading-6">{children}</li>,
+  p: ({ children }) => <p className={MARKDOWN_PARAGRAPH_CLASS}>{children}</p>,
+  ul: ({ children }) => <ul className={`${MARKDOWN_LIST_CLASS} list-disc`}>{children}</ul>,
+  ol: ({ children }) => <ol className={`${MARKDOWN_LIST_CLASS} list-decimal`}>{children}</ol>,
+  li: ({ children }) => <li className="leading-5">{children}</li>,
   table: ({ children }) => (
     <div className="mt-3 overflow-x-auto rounded-xl border border-border/70">
       <table className="min-w-full border-collapse text-left text-xs">{children}</table>
@@ -147,7 +150,7 @@ function ThinkBlock({ text }: { text: string }) {
         <span className="tracking-wide uppercase font-medium">thinking</span>
       </button>
       {open && (
-        <div className="mt-1.5 pl-3 border-l border-border/40 text-xs text-muted-foreground/60">
+        <div className="mt-1 pl-3 border-l border-border/40 text-xs leading-5 text-muted-foreground/60">
           <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
             {text}
           </ReactMarkdown>
@@ -161,7 +164,7 @@ export function ChatMarkdown({ content }: ChatMarkdownProps) {
   const segments = parseThinkBlocks(content)
 
   return (
-    <div className="space-y-2">
+    <div className={MARKDOWN_STACK_CLASS}>
       {segments.map((segment, index) => {
         if (!segment.text.trim()) {
           return null

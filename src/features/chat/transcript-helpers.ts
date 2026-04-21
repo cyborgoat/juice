@@ -160,7 +160,16 @@ export function buildVisibleSessions(
       pendingApproval?.approvalId != null && pendingApproval.sessionId === session.id,
   }))
 
-  return [...localSessions, ...syncedRemoteSessions]
+  // Preserve optimistic local sessions, but let backend-backed records win once present.
+  const mergedSessions = new Map<string, SessionSummary>()
+  for (const session of localSessions) {
+    mergedSessions.set(session.id, session)
+  }
+  for (const session of syncedRemoteSessions) {
+    mergedSessions.set(session.id, session)
+  }
+
+  return [...mergedSessions.values()]
 }
 
 export function resolvePreferredSessionId(
